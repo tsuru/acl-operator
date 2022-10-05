@@ -1,0 +1,132 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.0
+  creationTimestamp: null
+  name: acls.cache.extensions.tsuru.io
+spec:
+  group: cache.extensions.tsuru.io
+  names:
+    kind: ACL
+    listKind: ACLList
+    plural: acls
+    singular: acl
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ACL is the Schema for the acls API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ACLSpec defines the desired state of ACL
+            properties:
+              destinations:
+                items:
+                  properties:
+                    externalDNS:
+                      properties:
+                        name:
+                          type: string
+                        ports:
+                          items:
+                            properties:
+                              port:
+                                type: integer
+                              protocol:
+                                type: string
+                            required:
+                            - port
+                            - protocol
+                            type: object
+                          type: array
+                      required:
+                      - name
+                      - ports
+                      type: object
+                    externalIP:
+                      properties:
+                        ip:
+                          type: string
+                        ports:
+                          items:
+                            properties:
+                              port:
+                                type: integer
+                              protocol:
+                                type: string
+                            required:
+                            - port
+                            - protocol
+                            type: object
+                          type: array
+                      required:
+                      - ip
+                      - ports
+                      type: object
+                    rpaasInstance:
+                      properties:
+                        instance:
+                          type: string
+                        serviceName:
+                          type: string
+                      required:
+                      - instance
+                      - serviceName
+                      type: object
+                    tsuruApp:
+                      type: string
+                    tsuruAppPool:
+                      type: string
+                  required:
+                  - externalDNS
+                  - externalIP
+                  - rpaasInstance
+                  - tsuruApp
+                  - tsuruAppPool
+                  type: object
+                type: array
+              source:
+                properties:
+                  rpaasInstance:
+                    properties:
+                      instance:
+                        type: string
+                      serviceName:
+                        type: string
+                    required:
+                    - instance
+                    - serviceName
+                    type: object
+                  tsuruApp:
+                    type: string
+                required:
+                - rpaasInstance
+                - tsuruApp
+                type: object
+            required:
+            - destinations
+            - source
+            type: object
+          status:
+            description: ACLStatus defines the observed state of ACL
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

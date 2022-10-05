@@ -1,0 +1,24 @@
+# permissions for end users to edit acls.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: acl-editor-role
+rules:
+- apiGroups:
+  - cache.extensions.tsuru.io
+  resources:
+  - acls
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cache.extensions.tsuru.io
+  resources:
+  - acls/status
+  verbs:
+  - get
