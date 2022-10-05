@@ -6,7 +6,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - cache.extensions.tsuru.io
+  - extensions.tsuru.io
   resources:
   - acls
   verbs:
@@ -18,13 +18,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - cache.extensions.tsuru.io
+  - extensions.tsuru.io
   resources:
   - acls/finalizers
   verbs:
   - update
 - apiGroups:
-  - cache.extensions.tsuru.io
+  - extensions.tsuru.io
   resources:
   - acls/status
   verbs:

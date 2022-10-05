@@ -1,6 +1,0 @@
-apiVersion: cache.extensions.tsuru.io/v1alpha1
-kind: ACL
-metadata:
-  name: acl-sample
-spec:
-  # TODO(user): Add fields here

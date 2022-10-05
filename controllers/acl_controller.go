@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	cachev1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
+	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 )
 
 // ACLReconciler reconciles a ACL object
@@ -33,9 +33,9 @@ type ACLReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=cache.extensions.tsuru.io,resources=acls,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=cache.extensions.tsuru.io,resources=acls/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=cache.extensions.tsuru.io,resources=acls/finalizers,verbs=update
+//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=acls,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=acls/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=acls/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -57,6 +57,6 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 // SetupWithManager sets up the controller with the Manager.
 func (r *ACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&cachev1alpha1.ACL{}).
+		For(&v1alpha1.ACL{}).
 		Complete(r)
 }

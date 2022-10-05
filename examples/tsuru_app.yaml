@@ -1,0 +1,9 @@
+apiVersion: extensions.tsuru.io/v1alpha1
+kind: ACL
+metadata:
+  name: paulo-teste
+  namespace: rpaasv2-be-gke-main
+spec:
+  source:
+    tsuruApp: paulo-teste
+  destinations: []
