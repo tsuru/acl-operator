@@ -45,12 +45,12 @@ spec:
                         ports:
                           items:
                             properties:
-                              port:
+                              number:
                                 type: integer
                               protocol:
                                 type: string
                             required:
-                            - port
+                            - number
                             - protocol
                             type: object
                           type: array
@@ -65,12 +65,12 @@ spec:
                         ports:
                           items:
                             properties:
-                              port:
+                              number:
                                 type: integer
                               protocol:
                                 type: string
                             required:
-                            - port
+                            - number
                             - protocol
                             type: object
                           type: array
@@ -115,6 +115,9 @@ spec:
             type: object
           status:
             description: ACLStatus defines the observed state of ACL
+            properties:
+              networkPolicy:
+                type: string
             type: object
         type: object
     served: true

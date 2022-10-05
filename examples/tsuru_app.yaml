@@ -6,4 +6,11 @@ metadata:
 spec:
   source:
     tsuruApp: paulo-teste
-  destinations: []
+  destinations:
+  - externalDNS:
+      name: www.google.com
+      ports:
+      - protocol: tcp
+        number: 80
+      - protocol: tcp
+        number: 443
