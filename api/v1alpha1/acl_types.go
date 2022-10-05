@@ -27,8 +27,8 @@ type ACLSpec struct {
 }
 
 type ACLSpecSource struct {
-	TsuruApp      string                      `json:"tsuruApp"`
-	RpaasInstance *ACLSpecSourceRpaasInstance `json:"rpaasInstance"`
+	TsuruApp      string                      `json:"tsuruApp,omitempty"`
+	RpaasInstance *ACLSpecSourceRpaasInstance `json:"rpaasInstance,omitempty"`
 }
 
 type ACLSpecSourceRpaasInstance struct {
@@ -37,11 +37,11 @@ type ACLSpecSourceRpaasInstance struct {
 }
 
 type ACLSpecDestination struct {
-	TsuruApp      string                      `json:"tsuruApp"`
-	TsuruAppPool  string                      `json:"tsuruAppPool"`
-	RpaasInstance *ACLSpecSourceRpaasInstance `json:"rpaasInstance"`
-	ExternalDNS   *ACLSpecExternalDNS         `json:"externalDNS"`
-	ExternalIP    *ACLSpecExternalIP          `json:"externalIP"`
+	TsuruApp      string                      `json:"tsuruApp,omitempty"`
+	TsuruAppPool  string                      `json:"tsuruAppPool,omitempty"`
+	RpaasInstance *ACLSpecSourceRpaasInstance `json:"rpaasInstance,omitempty"`
+	ExternalDNS   *ACLSpecExternalDNS         `json:"externalDNS,omitempty"`
+	ExternalIP    *ACLSpecExternalIP          `json:"externalIP,omitempty"`
 }
 
 type ACLSpecExternalDNS struct {

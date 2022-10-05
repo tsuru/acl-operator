@@ -2,7 +2,7 @@ apiVersion: extensions.tsuru.io/v1alpha1
 kind: ACL
 metadata:
   name: paulo-teste
-  namespace: rpaasv2-be-gke-main
+  namespace: tsuru-gke-main
 spec:
   source:
     tsuruApp: paulo-teste
