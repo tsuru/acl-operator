@@ -1,0 +1,9 @@
+domain: extensions.tsuru.io
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: acl-operator
+repo: github.com/tsuru/acl-operator
+version: "3"
