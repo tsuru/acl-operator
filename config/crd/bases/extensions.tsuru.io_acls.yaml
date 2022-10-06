@@ -15,7 +15,11 @@ spec:
     singular: acl
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ACL is the Schema for the acls API
@@ -56,7 +60,6 @@ spec:
                           type: array
                       required:
                       - name
-                      - ports
                       type: object
                     externalIP:
                       properties:
@@ -76,7 +79,6 @@ spec:
                           type: array
                       required:
                       - ip
-                      - ports
                       type: object
                     rpaasInstance:
                       properties:
@@ -118,6 +120,12 @@ spec:
             properties:
               networkPolicy:
                 type: string
+              ready:
+                type: boolean
+              reason:
+                type: string
+            required:
+            - ready
             type: object
         type: object
     served: true

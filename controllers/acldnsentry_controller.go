@@ -18,8 +18,8 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"net"
+	"sort"
 	"time"
 
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +36,7 @@ type ACLDNSResolver interface {
 	LookupIPAddr(context.Context, string) ([]net.IPAddr, error)
 }
 
-var DefaultResolver ACLDNSResolver = &net.Resolver{PreferGo: true}
+var DefaultResolver ACLDNSResolver = &net.Resolver{}
 
 // ACLDNSEntryReconciler reconciles a ACLDNSEntry object
 type ACLDNSEntryReconciler struct {
@@ -71,47 +71,69 @@ func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	if len(resolver.Status.IPs) > 0 {
-		// break temporarily
-		return ctrl.Result{}, nil
-	}
-
-	timoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	timoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	ipAddrs, err := r.Resolver.LookupIPAddr(timoutCtx, resolver.Spec.Host)
 
 	if err != nil {
 		l.Error(err, "could not resolve address", "host", resolver.Spec.Host)
+
+		resolver.Status.Ready = false
+		resolver.Status.Reason = err.Error()
+
+		statusErr := r.Client.Status().Update(ctx, resolver)
+		if statusErr != nil {
+			l.Error(statusErr, "could not update status for ACLDNSEntry object")
+			return ctrl.Result{}, statusErr
+		}
 		return ctrl.Result{}, err
 	}
 
-	//now := time.Now()
-	validUtil := time.Now().UTC().Add(7 * 24 * time.Hour)
+	now := time.Now().UTC()
+	validUntil := now.Add(7 * 24 * time.Hour)
 
-	for _, existingIP := range resolver.Status.IPs {
-		for _, foundIP := range ipAddrs {
+	missingIpAddrs := []net.IPAddr{}
+statusLoop:
+	for _, foundIP := range ipAddrs {
+		for i, existingIP := range resolver.Status.IPs {
 			if existingIP.Address == foundIP.IP.String() {
-				fmt.Println("TODO: update valid until")
+				resolver.Status.IPs[i].ValidUntil = validUntil.Format(time.RFC3339)
+				continue statusLoop
 			}
 		}
+
+		missingIpAddrs = append(missingIpAddrs, foundIP)
 	}
 
-	for _, foundIP := range ipAddrs {
+	for _, foundIP := range missingIpAddrs {
 		resolver.Status.IPs = append(resolver.Status.IPs, extensionstsuruiov1alpha1.ACLDNSEntryStatusIP{
-			Address:   foundIP.IP.String(),
-			ValidUtil: validUtil.Format(time.RFC3339),
+			Address:    foundIP.IP.String(),
+			ValidUntil: validUntil.Format(time.RFC3339),
 		})
 	}
+
+	sort.Slice(resolver.Status.IPs, func(i, j int) bool {
+		return resolver.Status.IPs[i].Address < resolver.Status.IPs[j].Address
+	})
+
+	n := 0
+	for _, ip := range resolver.Status.IPs {
+		t, _ := time.Parse(time.RFC3339, ip.ValidUntil)
+
+		if !now.After(t) {
+			resolver.Status.IPs[n] = ip
+			n++
+		}
+	}
+	resolver.Status.IPs = resolver.Status.IPs[:n]
+	resolver.Status.Ready = true
+	resolver.Status.Reason = ""
 
 	err = r.Client.Status().Update(ctx, resolver)
 	if err != nil {
 		l.Error(err, "could not update status for ACLDNSEntry object")
 		return ctrl.Result{}, err
 	}
-	fmt.Println("RESOLVER ******", resolver)
-	fmt.Println("RESOLVER ******", ipAddrs)
-
-	// TODO(user): your logic here
 
 	return ctrl.Result{}, nil
 }

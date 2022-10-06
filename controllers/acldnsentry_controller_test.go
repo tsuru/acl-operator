@@ -28,6 +28,11 @@ func (f *fakeResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPA
 		}, nil
 	}
 
+	if host == "timeout.com.br" {
+		return nil, errors.New("timeout for host")
+
+	}
+
 	return nil, errors.New("no mocks for host")
 }
 
@@ -58,7 +63,90 @@ func (suite *ControllerSuite) TestACLDNSEntryReconcilerSimpleReconcile() {
 	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(resolver), existingResolver)
 	suite.Require().NoError(err)
 
+	suite.Assert().True(existingResolver.Status.Ready)
 	suite.Require().Len(existingResolver.Status.IPs, 2)
-	suite.Assert().Equal("8.8.8.8", existingResolver.Status.IPs[0].Address)
-	suite.Assert().Equal("8.8.4.4", existingResolver.Status.IPs[1].Address)
+	suite.Assert().Equal("8.8.4.4", existingResolver.Status.IPs[0].Address)
+	suite.Assert().Equal("8.8.8.8", existingResolver.Status.IPs[1].Address)
+}
+
+func (suite *ControllerSuite) TestACLDNSEntryReconcilerSimpleReconcileExisting() {
+	ctx := context.Background()
+	resolver := &v1alpha1.ACLDNSEntry{
+		ObjectMeta: v1.ObjectMeta{
+			Name: "www.google.com.br",
+		},
+		Spec: v1alpha1.ACLDNSEntrySpec{
+			Host: "www.google.com.br",
+		},
+		Status: v1alpha1.ACLDNSEntryStatus{
+			IPs: []v1alpha1.ACLDNSEntryStatusIP{
+				{
+					Address:    "1.1.1.1",
+					ValidUntil: "2015-10-02T15:00:00Z",
+				},
+				{
+					Address:    "8.8.8.8",
+					ValidUntil: "2015-10-02T15:00:00Z",
+				},
+				{
+					Address:    "9.9.9.9",
+					ValidUntil: "2200-10-02T15:00:00Z", // I expect that someone of future wont judge-me
+				},
+			},
+		},
+	}
+
+	reconciler := &ACLDNSEntryReconciler{
+		Client:   fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(resolver).Build(),
+		Scheme:   scheme.Scheme,
+		Resolver: &fakeResolver{},
+	}
+	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{
+		NamespacedName: types.NamespacedName{
+			Name: "www.google.com.br",
+		},
+	})
+	suite.Require().NoError(err)
+
+	existingResolver := &v1alpha1.ACLDNSEntry{}
+	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(resolver), existingResolver)
+	suite.Require().NoError(err)
+
+	suite.Assert().True(existingResolver.Status.Ready)
+	suite.Require().Len(existingResolver.Status.IPs, 3)
+	suite.Assert().Equal("8.8.4.4", existingResolver.Status.IPs[0].Address)
+	suite.Assert().Equal("8.8.8.8", existingResolver.Status.IPs[1].Address)
+	suite.Assert().Equal("9.9.9.9", existingResolver.Status.IPs[2].Address)
+}
+
+func (suite *ControllerSuite) TestACLDNSEntryReconcilerTimeoutReconcile() {
+	ctx := context.Background()
+	resolver := &v1alpha1.ACLDNSEntry{
+		ObjectMeta: v1.ObjectMeta{
+			Name: "timeout.com.br",
+		},
+		Spec: v1alpha1.ACLDNSEntrySpec{
+			Host: "timeout.com.br",
+		},
+	}
+
+	reconciler := &ACLDNSEntryReconciler{
+		Client:   fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(resolver).Build(),
+		Scheme:   scheme.Scheme,
+		Resolver: &fakeResolver{},
+	}
+	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{
+		NamespacedName: types.NamespacedName{
+			Name: "timeout.com.br",
+		},
+	})
+	suite.Require().Error(err, "timeout for host")
+
+	existingResolver := &v1alpha1.ACLDNSEntry{}
+	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(resolver), existingResolver)
+	suite.Require().NoError(err)
+
+	suite.Require().Len(existingResolver.Status.IPs, 0)
+	suite.Assert().False(existingResolver.Status.Ready)
+	suite.Assert().Equal("timeout for host", existingResolver.Status.Reason)
 }

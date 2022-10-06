@@ -30,17 +30,21 @@ type ACLDNSEntrySpec struct {
 
 // ACLDNSEntryStatus defines the observed state of ACLDNSEntry
 type ACLDNSEntryStatus struct {
-	IPs []ACLDNSEntryStatusIP `json:"ips"`
+	IPs    []ACLDNSEntryStatusIP `json:"ips"`
+	Ready  bool                  `json:"ready"`
+	Reason string                `json:"reason,omitempty"`
 }
 
 type ACLDNSEntryStatusIP struct {
-	Address   string `json:"address"`
-	ValidUtil string `json:"validUtil"`
+	Address    string `json:"address"`
+	ValidUntil string `json:"validUtil"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:scope=Cluster
+//+kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
+//+kubebuilder:printcolumn:name="Addresses",type=string,JSONPath=`.status.ips[*].address`
 
 // ACLDNSEntry is the Schema for the ACLDNSEntrys API
 type ACLDNSEntry struct {

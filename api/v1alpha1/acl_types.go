@@ -46,12 +46,12 @@ type ACLSpecDestination struct {
 
 type ACLSpecExternalDNS struct {
 	Name  string            `json:"name"`
-	Ports ACLSpecProtoPorts `json:"ports"`
+	Ports ACLSpecProtoPorts `json:"ports,omitempty"`
 }
 
 type ACLSpecExternalIP struct {
 	IP    string            `json:"ip"`
-	Ports ACLSpecProtoPorts `json:"ports"`
+	Ports ACLSpecProtoPorts `json:"ports,omitempty"`
 }
 
 type ACLSpecProtoPorts []ProtoPort
@@ -64,10 +64,13 @@ type ProtoPort struct {
 // ACLStatus defines the observed state of ACL
 type ACLStatus struct {
 	NetworkPolicy string `json:"networkPolicy,omitempty"`
+	Ready         bool   `json:"ready"`
+	Reason        string `json:"reason,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
 
 // ACL is the Schema for the acls API
 type ACL struct {

@@ -15,7 +15,14 @@ spec:
     singular: acldnsentry
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    - jsonPath: .status.ips[*].address
+      name: Addresses
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ACLDNSEntry is the Schema for the ACLDNSEntrys API
@@ -55,8 +62,13 @@ spec:
                   - validUtil
                   type: object
                 type: array
+              ready:
+                type: boolean
+              reason:
+                type: string
             required:
             - ips
+            - ready
             type: object
         type: object
     served: true
