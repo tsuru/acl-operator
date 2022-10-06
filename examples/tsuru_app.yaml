@@ -7,6 +7,8 @@ spec:
   source:
     tsuruApp: paulo-teste
   destinations:
+  - tsuruApp: paulo-teste
+  - tsuruAppPool: gke-main2
   - externalDNS:
       name: www.google.com
       ports:

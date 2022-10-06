@@ -8,6 +8,32 @@ rules:
 - apiGroups:
   - extensions.tsuru.io
   resources:
+  - ACLDNSEntrys
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
+  - ACLDNSEntrys/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
+  - ACLDNSEntrys/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
   - acls
   verbs:
   - create

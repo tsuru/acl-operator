@@ -1,0 +1,6 @@
+apiVersion: extensions.tsuru.io/v1alpha1
+kind: ACLDNSEntry
+metadata:
+  name: www.facebook.com
+spec:
+  host: www.facebook.com

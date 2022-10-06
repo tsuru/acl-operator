@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	extensionstsuruiov1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 	"github.com/tsuru/acl-operator/controllers"
 	//+kubebuilder:scaffold:imports
@@ -45,6 +46,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(extensionstsuruiov1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -94,6 +96,14 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ACL")
+		os.Exit(1)
+	}
+	if err = (&controllers.ACLDNSEntryReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Resolver: controllers.DefaultResolver,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ACLDNSEntry")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
