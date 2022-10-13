@@ -266,6 +266,10 @@ func (r *ACLReconciler) egressRulesForTsuruAppPool(ctx context.Context, tsuruApp
 func (r *ACLReconciler) egressRulesForExternalDNS(ctx context.Context, externalDNS *v1alpha1.ACLSpecExternalDNS) ([]netv1.NetworkPolicyEgressRule, error) {
 	l := log.FromContext(ctx)
 
+	if isWildCard(externalDNS.Name) {
+		return nil, nil
+	}
+
 	existingDNSEntry, err := r.ensureDNSEntry(ctx, externalDNS.Name)
 
 	if err != nil {
@@ -322,7 +326,7 @@ func (r *ACLReconciler) egressRulesForExternalIP(ctx context.Context, externalIP
 	return egress, nil
 }
 
-func (r *ACLReconciler) egressRulesForRpaasInstance(ctx context.Context, rpaasInstance *v1alpha1.ACLSpecSourceRpaasInstance) ([]netv1.NetworkPolicyEgressRule, error) {
+func (r *ACLReconciler) egressRulesForRpaasInstance(ctx context.Context, rpaasInstance *v1alpha1.ACLSpecRpaasInstance) ([]netv1.NetworkPolicyEgressRule, error) {
 	return nil, nil
 }
 
@@ -409,4 +413,8 @@ func (r *ACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ACL{}).
 		Complete(r)
+}
+
+func isWildCard(name string) bool {
+	return name != "" && name[0] == '.'
 }

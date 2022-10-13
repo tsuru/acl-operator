@@ -33,7 +33,9 @@ import (
 
 	extensionstsuruiov1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
+	"github.com/tsuru/acl-operator/clients/aclapi"
 	"github.com/tsuru/acl-operator/controllers"
+	tsuruv1 "github.com/tsuru/tsuru/provision/kubernetes/pkg/apis/tsuru/v1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -46,6 +48,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(tsuruv1.AddToScheme(scheme))
 	utilruntime.Must(extensionstsuruiov1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -54,6 +57,15 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+
+	var aclAPIAddr string
+	var aclAPIUser string
+	var aclAPIPassword string
+
+	flag.StringVar(&aclAPIAddr, "acl-api-address", "", "The address of ACL API")
+	flag.StringVar(&aclAPIUser, "acl-api-user", "", "The user of ACL API")
+	flag.StringVar(&aclAPIPassword, "acl-api-password", "", "The password of ACL API")
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -104,6 +116,14 @@ func main() {
 		Resolver: controllers.DefaultResolver,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ACLDNSEntry")
+		os.Exit(1)
+	}
+	if err = (&controllers.TsuruAppReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		ACLAPI: aclapi.New(aclAPIAddr, aclAPIUser, aclAPIPassword),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "TsuruAppReconciler")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
