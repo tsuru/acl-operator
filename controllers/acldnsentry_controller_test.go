@@ -5,10 +5,10 @@ import (
 	"errors"
 	"net"
 
+	"github.com/tsuru/acl-operator/api/scheme"
 	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"

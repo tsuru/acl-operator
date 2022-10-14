@@ -59,8 +59,10 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	destinations, errs := convertACLAPIRulesToOperatorRules(rules)
-	if len(errs) > 0 {
 
+	warningErrors := []string{}
+	for _, e := range errs {
+		warningErrors = append(warningErrors, e.Error())
 	}
 
 	acl := &v1alpha1.ACL{}
@@ -85,6 +87,9 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				},
 				Destinations: destinations,
 			},
+			Status: v1alpha1.ACLStatus{
+				WarningErrors: warningErrors,
+			},
 		})
 
 		if err != nil {
@@ -95,7 +100,6 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			Requeue:      true,
 			RequeueAfter: requeueAfter,
 		}, nil
-
 	} else if err != nil {
 		l.Error(err, "could not get ACL object")
 		return ctrl.Result{}, err
@@ -116,6 +120,16 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	err = r.Client.Update(ctx, acl)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+
+	if len(warningErrors) > 0 || len(acl.Status.WarningErrors) > 0 {
+		acl.Status.WarningErrors = warningErrors
+
+		err := r.Client.Status().Update(ctx, acl)
+		if err != nil {
+			l.Error(err, "could not remove update status of ACL")
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{
@@ -144,31 +158,33 @@ func convertACLAPIRulesToOperatorRules(rules []aclapi.Rule) ([]v1alpha1.ACLSpecD
 				})
 			}
 		} else if rule.Destination.ExternalDNS != nil {
-			externalDNS, err := convertExternalDNSDestination(rule.Destination.ExternalDNS)
-			if err != nil {
-				errors = append(errors, err)
+			externalDNS, errs := convertExternalDNSDestination(rule.Destination.ExternalDNS)
+			errors = append(errors, errs...)
+			if result != nil {
+				result = append(result, v1alpha1.ACLSpecDestination{
+					ExternalDNS: externalDNS,
+				})
 			}
-			result = append(result, v1alpha1.ACLSpecDestination{
-				ExternalDNS: externalDNS,
-			})
 		} else if rule.Destination.ExternalIP != nil {
-			externalIP, err := convertExternalIPDestination(rule.Destination.ExternalIP)
-			if err != nil {
-				errors = append(errors, err)
+			externalIP, errs := convertExternalIPDestination(rule.Destination.ExternalIP)
+			errors = append(errors, errs...)
+
+			if result != nil {
+				result = append(result, v1alpha1.ACLSpecDestination{
+					ExternalIP: externalIP,
+				})
 			}
-			result = append(result, v1alpha1.ACLSpecDestination{
-				ExternalIP: externalIP,
-			})
 		} else if rule.Destination.RpaasInstance != nil {
 			rpaasInstance, err := convertRpaasInstanceDestination(rule.Destination.RpaasInstance)
 			if err != nil {
 				errors = append(errors, err)
+				continue
 			}
 			result = append(result, v1alpha1.ACLSpecDestination{
 				RpaasInstance: rpaasInstance,
 			})
 		} else if rule.Destination.KubernetesService != nil {
-			err := fmt.Errorf("Kubernetes service is not supported yet")
+			err := fmt.Errorf("kubernetes service is not supported yet %v", rule.Destination.KubernetesService)
 			errors = append(errors, err)
 		}
 	}
@@ -176,30 +192,28 @@ func convertACLAPIRulesToOperatorRules(rules []aclapi.Rule) ([]v1alpha1.ACLSpecD
 	return result, errors
 }
 
-func convertExternalDNSDestination(rule *aclapi.ExternalDNSRule) (*v1alpha1.ACLSpecExternalDNS, error) {
+func convertExternalDNSDestination(rule *aclapi.ExternalDNSRule) (*v1alpha1.ACLSpecExternalDNS, []error) {
 	result := &v1alpha1.ACLSpecExternalDNS{
 		Name:  rule.Name,
 		Ports: convertPorts(rule.Ports),
 	}
-
+	errors := []error{}
 	if rule.SyncWholeNetwork {
-		return nil, fmt.Errorf("SyncWholeNetwork is not supported for %q", rule.Name)
+		errors = append(errors, fmt.Errorf("SyncWholeNetwork is not supported for %q", rule.Name))
 	}
-
-	return result, nil
+	return result, errors
 }
 
-func convertExternalIPDestination(rule *aclapi.ExternalIPRule) (*v1alpha1.ACLSpecExternalIP, error) {
+func convertExternalIPDestination(rule *aclapi.ExternalIPRule) (*v1alpha1.ACLSpecExternalIP, []error) {
 	result := &v1alpha1.ACLSpecExternalIP{
 		IP:    rule.IP,
 		Ports: convertPorts(rule.Ports),
 	}
-
+	errors := []error{}
 	if rule.SyncWholeNetwork {
-		return nil, fmt.Errorf("SyncWholeNetwork is not supported for %q", rule.IP)
+		errors = append(errors, fmt.Errorf("SyncWholeNetwork is not supported for %q", rule.IP))
 	}
-
-	return result, nil
+	return result, errors
 }
 
 func convertRpaasInstanceDestination(rule *aclapi.RpaasInstanceRule) (*v1alpha1.ACLSpecRpaasInstance, error) {

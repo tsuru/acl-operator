@@ -63,9 +63,10 @@ type ProtoPort struct {
 
 // ACLStatus defines the observed state of ACL
 type ACLStatus struct {
-	NetworkPolicy string `json:"networkPolicy,omitempty"`
-	Ready         bool   `json:"ready"`
-	Reason        string `json:"reason,omitempty"`
+	NetworkPolicy string   `json:"networkPolicy,omitempty"`
+	Ready         bool     `json:"ready"`
+	Reason        string   `json:"reason,omitempty"`
+	WarningErrors []string `json:"warningErrors,omitempty"`
 }
 
 //+kubebuilder:object:root=true
