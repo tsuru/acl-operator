@@ -23,6 +23,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+	tsuruErrors "github.com/tsuru/tsuru/errors"
+	tsuruNet "github.com/tsuru/tsuru/net"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
+	"github.com/tsuru/acl-operator/clients/tsuruapi"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -43,7 +47,8 @@ var requeueAfter = time.Minute * 10
 // ACLReconciler reconciles a ACL object
 type ACLReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	TsuruAPI tsuruapi.Client
 }
 
 //+kubebuilder:rbac:groups=extensions.tsuru.io,resources=acls,verbs=get;list;watch;create;update;patch;delete
@@ -121,12 +126,14 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	newEgressRules := []netv1.NetworkPolicyEgressRule{}
 	for _, destination := range acl.Spec.Destinations {
 		egressRules, err := r.egressRulesForDestination(ctx, destination)
+		// TODO: think about inconsistences, or temporarrly inconsistences
 		if err != nil {
 			destinationJSON, _ := json.Marshal(destination)
 			l.Error(err, "could not generate egress rule for destination", "destination", string(destinationJSON))
 			err = r.setUnreadyStatus(ctx, acl, "could not generate egress rule for destination "+string(destinationJSON))
 			return ctrl.Result{}, err
 		}
+		// TODO: check IPBlock Rules for translate also into kubernetes labels
 		newEgressRules = append(newEgressRules, egressRules...)
 	}
 
@@ -197,16 +204,11 @@ func (r *ACLReconciler) setUnreadyStatus(ctx context.Context, acl *v1alpha1.ACL,
 
 func (r *ACLReconciler) podSelectorForSource(source v1alpha1.ACLSpecSource) map[string]string {
 	if source.TsuruApp != "" {
-		return map[string]string{
-			"tsuru.io/app-name": source.TsuruApp,
-		}
+		return r.podSelectorForTsuruApp(source.TsuruApp)
 	}
 
 	if source.RpaasInstance != nil {
-		return map[string]string{
-			"rpaas.extensions.tsuru.io/instance-name": source.RpaasInstance.Instance,
-			"rpaas.extensions.tsuru.io/service-name":  source.RpaasInstance.ServiceName,
-		}
+		return r.podSelectorForRpasInstance(source.RpaasInstance)
 	}
 
 	return nil
@@ -228,6 +230,7 @@ func (r *ACLReconciler) egressRulesForDestination(ctx context.Context, destinati
 }
 
 func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp string) ([]netv1.NetworkPolicyEgressRule, error) {
+	allErrors := &tsuruErrors.MultiError{}
 	egress := []netv1.NetworkPolicyEgressRule{
 		{
 			To: []netv1.NetworkPolicyPeer{
@@ -241,7 +244,37 @@ func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp str
 		},
 	}
 
-	return egress, nil
+	appInfo, err := r.TsuruAPI.AppInfo(ctx, tsuruApp)
+
+	if err != nil {
+		allErrors.Add(errors.Wrap(err, "could not get tsuru app info"))
+		return egress, allErrors.ToError()
+	}
+
+	addrs := make([]string, 0, len(appInfo.Routers))
+	for _, r := range appInfo.Routers {
+		if len(r.Addresses) > 0 {
+			for _, addr := range r.Addresses {
+				addrs = append(addrs, tsuruNet.URLToHost(addr))
+			}
+		} else {
+			addrs = append(addrs, tsuruNet.URLToHost(r.Address))
+		}
+	}
+
+	for _, addr := range addrs {
+		addrEgresses, err := r.egressRulesForExternalDNS(ctx, &v1alpha1.ACLSpecExternalDNS{
+			Name: addr,
+		})
+
+		if err != nil {
+			allErrors.Add(errors.Wrapf(err, "could not generate egress rule for: %q", addr))
+		}
+
+		egress = append(egress, addrEgresses...)
+	}
+
+	return egress, allErrors.ToError()
 }
 
 func (r *ACLReconciler) egressRulesForTsuruAppPool(ctx context.Context, tsuruAppPool string) ([]netv1.NetworkPolicyEgressRule, error) {
@@ -327,7 +360,41 @@ func (r *ACLReconciler) egressRulesForExternalIP(ctx context.Context, externalIP
 }
 
 func (r *ACLReconciler) egressRulesForRpaasInstance(ctx context.Context, rpaasInstance *v1alpha1.ACLSpecRpaasInstance) ([]netv1.NetworkPolicyEgressRule, error) {
-	return nil, nil
+	allErrors := &tsuruErrors.MultiError{}
+	egress := []netv1.NetworkPolicyEgressRule{
+		{
+			To: []netv1.NetworkPolicyPeer{
+				{
+					PodSelector: &metav1.LabelSelector{
+						MatchLabels: r.podSelectorForRpasInstance(rpaasInstance),
+					},
+					// NamespaceSelector: nil, TODO: use namespace selector, the major advantage is to reduce number of pods processed by calico
+				},
+			},
+		},
+	}
+
+	serviceInfo, err := r.TsuruAPI.ServiceInstanceInfo(ctx, rpaasInstance.ServiceName, rpaasInstance.Instance)
+
+	if err != nil {
+		allErrors.Add(errors.Wrap(err, "could not get service info"))
+		return egress, allErrors.ToError()
+	}
+
+	if serviceInfo.CustomInfo != nil && serviceInfo.CustomInfo["Address"] != nil {
+		addr := serviceInfo.CustomInfo["Address"].(string)
+		addrEgresses, err := r.egressRulesForExternalDNS(ctx, &v1alpha1.ACLSpecExternalDNS{
+			Name: addr,
+		})
+
+		if err != nil {
+			allErrors.Add(errors.Wrapf(err, "could not generate egress rule for: %q", addr))
+		}
+
+		egress = append(egress, addrEgresses...)
+	}
+
+	return egress, allErrors.ToError()
 }
 
 func (r *ACLReconciler) ensureDNSEntry(ctx context.Context, host string) (*v1alpha1.ACLDNSEntry, error) {
@@ -405,6 +472,13 @@ func (r *ACLReconciler) ports(p []v1alpha1.ProtoPort) []netv1.NetworkPolicyPort 
 func (r *ACLReconciler) podSelectorForTsuruApp(tsuruApp string) map[string]string {
 	return map[string]string{
 		"tsuru.io/app-name": tsuruApp,
+	}
+}
+
+func (r *ACLReconciler) podSelectorForRpasInstance(rpaasInstance *v1alpha1.ACLSpecRpaasInstance) map[string]string {
+	return map[string]string{
+		"rpaas.extensions.tsuru.io/instance-name": rpaasInstance.Instance,
+		"rpaas.extensions.tsuru.io/service-name":  rpaasInstance.ServiceName,
 	}
 }
 

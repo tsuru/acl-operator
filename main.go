@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/tsuru/acl-operator/clients/aclapi"
+	"github.com/tsuru/acl-operator/clients/tsuruapi"
 	"github.com/tsuru/acl-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -47,9 +48,19 @@ func main() {
 	var aclAPIUser string
 	var aclAPIPassword string
 
+	var tsuruAPIAddr string
+	var tsuruAPIToken string
+
 	flag.StringVar(&aclAPIAddr, "acl-api-address", "", "The address of ACL API")
 	flag.StringVar(&aclAPIUser, "acl-api-user", "", "The user of ACL API")
 	flag.StringVar(&aclAPIPassword, "acl-api-password", "", "The password of ACL API")
+
+	flag.StringVar(&aclAPIAddr, "acl-api-address", "", "The address of ACL API")
+	flag.StringVar(&aclAPIUser, "acl-api-user", "", "The user of ACL API")
+	flag.StringVar(&aclAPIPassword, "acl-api-password", "", "The password of ACL API")
+
+	flag.StringVar(&tsuruAPIAddr, "tsuru-api-address", "", "The address of Tsuru API")
+	flag.StringVar(&tsuruAPIToken, "tsuru-api-token", "", "The token of Tsuru API")
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -89,8 +100,9 @@ func main() {
 	}
 
 	if err = (&controllers.ACLReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		TsuruAPI: tsuruapi.New(tsuruAPIAddr, tsuruAPIToken),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ACL")
 		os.Exit(1)
