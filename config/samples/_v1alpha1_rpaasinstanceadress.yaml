@@ -1,0 +1,6 @@
+apiVersion: extensions.tsuru.io/v1alpha1
+kind: RpaasInstanceAdress
+metadata:
+  name: rpaasinstanceadress-sample
+spec:
+  # TODO(user): Add fields here

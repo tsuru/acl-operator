@@ -103,9 +103,9 @@ func (r *TsuruAppAdressReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	sort.Strings(resolvedIPs)
 
-	if !appAddress.Status.Ready || !reflect.DeepEqual(resolvedIPs, appAddress.Status.RouterIPs) {
+	if !appAddress.Status.Ready || !reflect.DeepEqual(resolvedIPs, appAddress.Status.IPs) {
 		appAddress.Status.Ready = true
-		appAddress.Status.RouterIPs = resolvedIPs
+		appAddress.Status.IPs = resolvedIPs
 		appAddress.Status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 		err = r.Client.Status().Update(ctx, appAddress)

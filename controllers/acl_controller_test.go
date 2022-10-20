@@ -137,9 +137,9 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 		Spec: v1alpha1.TsuruAppAdressSpec{
 			Name: "my-other-app",
 		},
-		Status: v1alpha1.TsuruAppAdressStatus{
+		Status: v1alpha1.ResourceAdressStatus{
 			Ready: true,
-			RouterIPs: []string{
+			IPs: []string{
 				"1.1.1.1",
 				"2.2.2.2",
 			},

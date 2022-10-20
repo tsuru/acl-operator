@@ -253,19 +253,32 @@ func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp str
 		return nil, err
 	}
 
-	for _, routerIP := range existingTsuruAppAddress.Status.RouterIPs {
+	resourceEgress, errors := r.egressRulesForResourceAddressStatus(ctx, existingTsuruAppAddress.Status)
+	egress = append(egress, resourceEgress...)
+	for _, err := range errors {
+		allErrors.Add(err)
+	}
+
+	return egress, allErrors.ToError()
+}
+
+func (r *ACLReconciler) egressRulesForResourceAddressStatus(ctx context.Context, status v1alpha1.ResourceAdressStatus) ([]netv1.NetworkPolicyEgressRule, []error) {
+	errs := []error{}
+	egresses := []netv1.NetworkPolicyEgressRule{}
+
+	for _, routerIP := range status.IPs {
 		addrEgresses, err := r.egressRulesForExternalIP(ctx, &v1alpha1.ACLSpecExternalIP{
 			IP: routerIP,
 		})
 
 		if err != nil {
-			allErrors.Add(errors.Wrapf(err, "could not generate egress rule for: %q", routerIP))
+			errs = append(errs, errors.Wrapf(err, "could not generate egress rule for: %q", routerIP))
 		}
 
-		egress = append(egress, addrEgresses...)
+		egresses = append(egresses, addrEgresses...)
 	}
 
-	return egress, allErrors.ToError()
+	return egresses, errs
 }
 
 func (r *ACLReconciler) egressRulesForTsuruAppPool(ctx context.Context, tsuruAppPool string) ([]netv1.NetworkPolicyEgressRule, error) {
@@ -362,6 +375,8 @@ func (r *ACLReconciler) egressRulesForExternalIP(ctx context.Context, externalIP
 }
 
 func (r *ACLReconciler) egressRulesForRpaasInstance(ctx context.Context, rpaasInstance *v1alpha1.ACLSpecRpaasInstance) ([]netv1.NetworkPolicyEgressRule, error) {
+	l := log.FromContext(ctx)
+
 	allErrors := &tsuruErrors.MultiError{}
 	egress := []netv1.NetworkPolicyEgressRule{
 		{
@@ -376,36 +391,20 @@ func (r *ACLReconciler) egressRulesForRpaasInstance(ctx context.Context, rpaasIn
 		},
 	}
 
-	serviceInfo, err := r.TsuruAPI.ServiceInstanceInfo(ctx, rpaasInstance.ServiceName, rpaasInstance.Instance)
+	existingRpaasInstanceAddress, err := r.ensureRpaasInstanceAddress(ctx, rpaasInstance)
 
 	if err != nil {
-		allErrors.Add(errors.Wrap(err, "could not get service info"))
-		return egress, allErrors.ToError()
+		l.Error(err, "could not get RpaasInstanceAddress",
+			"rpaasInstance", rpaasInstance.Instance,
+			"rpaasService", rpaasInstance.ServiceName,
+		)
+		return nil, err
 	}
 
-	if serviceInfo.CustomInfo != nil && serviceInfo.CustomInfo["Address"] != nil {
-		addr := serviceInfo.CustomInfo["Address"].(string)
-
-		if addr == "" {
-			return egress, nil
-		}
-
-		var addrEgresses []netv1.NetworkPolicyEgressRule
-		if isIPRange(addr) {
-			addrEgresses, err = r.egressRulesForExternalIP(ctx, &v1alpha1.ACLSpecExternalIP{
-				IP: addr,
-			})
-		} else {
-			addrEgresses, err = r.egressRulesForExternalDNS(ctx, &v1alpha1.ACLSpecExternalDNS{
-				Name: addr,
-			})
-		}
-
-		if err != nil {
-			allErrors.Add(errors.Wrapf(err, "could not generate egress rule for: %q", addr))
-		}
-
-		egress = append(egress, addrEgresses...)
+	resourceEgress, errors := r.egressRulesForResourceAddressStatus(ctx, existingRpaasInstanceAddress.Status)
+	egress = append(egress, resourceEgress...)
+	for _, err := range errors {
+		allErrors.Add(err)
 	}
 
 	return egress, allErrors.ToError()
@@ -518,6 +517,62 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 	}
 
 	return existingTsuruAppAddress, nil
+}
+
+func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasInstance *v1alpha1.ACLSpecRpaasInstance) (*v1alpha1.RpaasInstanceAdress, error) {
+	l := log.FromContext(ctx)
+
+	existingRpaasInstanceAddress := &v1alpha1.RpaasInstanceAdress{}
+	resourceName := rpaasInstance.ServiceName + "-" + rpaasInstance.Instance // TODO: treat long nome
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Name: resourceName,
+	}, existingRpaasInstanceAddress)
+
+	if k8sErrors.IsNotFound(err) {
+		rpaasInstanceAddress := &v1alpha1.RpaasInstanceAdress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: resourceName,
+			},
+			Spec: v1alpha1.RpaasInstanceAdressSpec{
+				ServiceName: rpaasInstance.ServiceName,
+				Instance:    rpaasInstance.Instance,
+			},
+		}
+
+		err = r.Client.Create(ctx, rpaasInstanceAddress)
+		if err != nil {
+			l.Error(err, "could not create RpaasInstanceAdress object")
+			return nil, err
+		}
+
+		subReconciler := &RpaasInstanceAdressReconciler{
+			Client:   r.Client,
+			Scheme:   r.Scheme,
+			Resolver: r.Resolver,
+			TsuruAPI: r.TsuruAPI,
+		}
+
+		_, err = subReconciler.Reconcile(ctx, ctrl.Request{
+			NamespacedName: types.NamespacedName{
+				Name: rpaasInstanceAddress.Name,
+			},
+		})
+
+		if err != nil {
+			l.Error(err, "could not sub-reconcicle RpaasInstanceAdress", "name", resourceName)
+			return nil, err
+		}
+
+		err = r.Client.Get(ctx, types.NamespacedName{
+			Name: resourceName,
+		}, existingRpaasInstanceAddress)
+		return existingRpaasInstanceAddress, err
+	} else if err != nil {
+		l.Error(err, "could not get RpaasInstanceAdress", "name", resourceName)
+		return nil, err
+	}
+
+	return existingRpaasInstanceAddress, nil
 }
 
 func (r *ACLReconciler) ports(p []v1alpha1.ProtoPort) []netv1.NetworkPolicyPort {

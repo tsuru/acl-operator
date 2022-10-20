@@ -60,6 +60,32 @@ rules:
 - apiGroups:
   - extensions.tsuru.io
   resources:
+  - rpaasinstanceadresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
+  - rpaasinstanceadresses/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
+  - rpaasinstanceadresses/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
   - tsuruappadresses
   verbs:
   - create

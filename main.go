@@ -78,18 +78,22 @@ func main() {
 
 	ctrl.SetLogger(logger)
 
-	tsuruAppReconciler := true
-	if aclAPIAddr == "" || aclAPIUser == "" || aclAPIPassword == "" {
-		logger.Info("TsuruAppReconciler is disabled due a missing acl api settings")
-		tsuruAppReconciler = false
-	}
-
 	if tsuruAPIAddr == "" {
 		tsuruAPIAddr = os.Getenv("TSURU_TARGET")
 	}
 
 	if tsuruAPIToken == "" {
 		tsuruAPIToken = os.Getenv("TSURU_TOKEN")
+	}
+
+	if aclAPIAddr == "" {
+		aclAPIAddr = os.Getenv("ACL_API_ADDRESS")
+	}
+	if aclAPIUser == "" {
+		aclAPIUser = os.Getenv("ACL_API_USER")
+	}
+	if aclAPIPassword == "" {
+		aclAPIPassword = os.Getenv("ACL_API_PASSWORD")
 	}
 
 	if tsuruAPIAddr == "" {
@@ -100,6 +104,12 @@ func main() {
 	if tsuruAPIToken == "" {
 		fmt.Println("TSURU_TOKEN env or tsuru-api-token flag is not defined")
 		os.Exit(1)
+	}
+
+	tsuruAppReconciler := true
+	if aclAPIAddr == "" || aclAPIUser == "" || aclAPIPassword == "" {
+		logger.Info("TsuruAppReconciler is disabled due a missing acl api settings")
+		tsuruAppReconciler = false
 	}
 
 	tsuruAPI := tsuruapi.New(tsuruAPIAddr, tsuruAPIToken)
@@ -171,6 +181,15 @@ func main() {
 		TsuruAPI: tsuruAPI,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "TsuruAppAdress")
+		os.Exit(1)
+	}
+	if err = (&controllers.RpaasInstanceAdressReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Resolver: controllers.DefaultResolver,
+		TsuruAPI: tsuruAPI,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "RpaasInstanceAdress")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

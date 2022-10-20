@@ -20,16 +20,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// TsuruAppAdressSpec defines the desired state of TsuruAppAdress
-type TsuruAppAdressSpec struct {
-	Name string `json:"name,omitempty"`
-}
+// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
+// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// ResourceAdressStatus defines the observed state of TsuruAppAdress and RpaasInstanceAdress
-type ResourceAdressStatus struct {
-	Ready     bool     `json:"ready"`
-	UpdatedAt string   `json:"updatedAt,omitempty"`
-	IPs       []string `json:"ips"`
+// RpaasInstanceAdressSpec defines the desired state of RpaasInstanceAdress
+type RpaasInstanceAdressSpec struct {
+	ServiceName string `json:"serviceName,omitempty"`
+	Instance    string `json:"instance,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -38,24 +35,24 @@ type ResourceAdressStatus struct {
 //+kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
 //+kubebuilder:printcolumn:name="Addresses",type=string,JSONPath=`.status.ips[*]`
 
-// TsuruAppAdress is the Schema for the tsuruappadresses API
-type TsuruAppAdress struct {
+// RpaasInstanceAdress is the Schema for the rpaasinstanceadresses API
+type RpaasInstanceAdress struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   TsuruAppAdressSpec   `json:"spec,omitempty"`
-	Status ResourceAdressStatus `json:"status,omitempty"`
+	Spec   RpaasInstanceAdressSpec `json:"spec,omitempty"`
+	Status ResourceAdressStatus    `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// TsuruAppAdressList contains a list of TsuruAppAdress
-type TsuruAppAdressList struct {
+// RpaasInstanceAdressList contains a list of RpaasInstanceAdress
+type RpaasInstanceAdressList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []TsuruAppAdress `json:"items"`
+	Items           []RpaasInstanceAdress `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&TsuruAppAdress{}, &TsuruAppAdressList{})
+	SchemeBuilder.Register(&RpaasInstanceAdress{}, &RpaasInstanceAdressList{})
 }

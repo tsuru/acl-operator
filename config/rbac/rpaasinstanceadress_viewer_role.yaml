@@ -1,0 +1,20 @@
+# permissions for end users to view rpaasinstanceadresses.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rpaasinstanceadress-viewer-role
+rules:
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
+  - rpaasinstanceadresses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
+  - rpaasinstanceadresses/status
+  verbs:
+  - get

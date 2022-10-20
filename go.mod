@@ -7,6 +7,7 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/tsuru/rpaas-operator v0.29.0
 	github.com/tsuru/tsuru v0.0.0-20220928174619-1ab0249a35be
+	go.uber.org/zap v1.23.0
 	k8s.io/api v0.25.3
 	k8s.io/apimachinery v0.25.3
 	k8s.io/client-go v0.25.3
@@ -86,7 +87,6 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20221012134737-56aed061732a // indirect
 	golang.org/x/net v0.0.0-20221014081412-f15817d10f9b // indirect
 	golang.org/x/oauth2 v0.0.0-20221006150949-b44042a4b9c1 // indirect
