@@ -48,6 +48,7 @@ type ACLReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	TsuruAPI tsuruapi.Client
+	Resolver ACLDNSResolver
 }
 
 //+kubebuilder:rbac:groups=extensions.tsuru.io,resources=acls,verbs=get;list;watch;create;update;patch;delete
@@ -129,7 +130,7 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		if err != nil {
 			destinationJSON, _ := json.Marshal(destination)
 			l.Error(err, "could not generate egress rule for destination", "destination", string(destinationJSON))
-			err = r.setUnreadyStatus(ctx, acl, "could not generate egress rule for destination "+string(destinationJSON))
+			err = r.setUnreadyStatus(ctx, acl, "could not generate egress rule for destination "+string(destinationJSON)+", err: "+err.Error())
 			return ctrl.Result{}, err
 		}
 		// TODO: check IPBlock Rules for translate also into kubernetes labels
@@ -384,9 +385,21 @@ func (r *ACLReconciler) egressRulesForRpaasInstance(ctx context.Context, rpaasIn
 
 	if serviceInfo.CustomInfo != nil && serviceInfo.CustomInfo["Address"] != nil {
 		addr := serviceInfo.CustomInfo["Address"].(string)
-		addrEgresses, err := r.egressRulesForExternalDNS(ctx, &v1alpha1.ACLSpecExternalDNS{
-			Name: addr,
-		})
+
+		if addr == "" {
+			return egress, nil
+		}
+
+		var addrEgresses []netv1.NetworkPolicyEgressRule
+		if isIPRange(addr) {
+			addrEgresses, err = r.egressRulesForExternalIP(ctx, &v1alpha1.ACLSpecExternalIP{
+				IP: addr,
+			})
+		} else {
+			addrEgresses, err = r.egressRulesForExternalDNS(ctx, &v1alpha1.ACLSpecExternalDNS{
+				Name: addr,
+			})
+		}
 
 		if err != nil {
 			allErrors.Add(errors.Wrapf(err, "could not generate egress rule for: %q", addr))
@@ -426,7 +439,7 @@ func (r *ACLReconciler) ensureDNSEntry(ctx context.Context, host string) (*v1alp
 		subReconciler := &ACLDNSEntryReconciler{
 			Client:   r.Client,
 			Scheme:   r.Scheme,
-			Resolver: DefaultResolver,
+			Resolver: r.Resolver,
 		}
 
 		_, err = subReconciler.Reconcile(ctx, ctrl.Request{
@@ -480,7 +493,8 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 		subReconciler := &TsuruAppAdressReconciler{
 			Client:   r.Client,
 			Scheme:   r.Scheme,
-			Resolver: DefaultResolver,
+			Resolver: r.Resolver,
+			TsuruAPI: r.TsuruAPI,
 		}
 
 		_, err = subReconciler.Reconcile(ctx, ctrl.Request{

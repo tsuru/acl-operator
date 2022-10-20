@@ -130,6 +130,7 @@ func main() {
 	if err = (&controllers.ACLReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
+		Resolver: controllers.DefaultResolver,
 		TsuruAPI: tsuruAPI,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ACL")

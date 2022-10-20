@@ -47,8 +47,10 @@ func (suite *ControllerSuite) TestACLReconcilerSimpleReconcile() {
 	}
 
 	reconciler := &ACLReconciler{
-		Client: fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(acl).Build(),
-		Scheme: scheme.Scheme,
+		Client:   fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(acl).Build(),
+		Scheme:   scheme.Scheme,
+		Resolver: &fakeResolver{},
+		TsuruAPI: &fakeTsuruAPI{},
 	}
 	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{
 		NamespacedName: types.NamespacedName{
@@ -128,9 +130,26 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 		},
 	}
 
+	tsuruAppAddress := &v1alpha1.TsuruAppAdress{
+		ObjectMeta: v1.ObjectMeta{
+			Name: "my-other-app",
+		},
+		Spec: v1alpha1.TsuruAppAdressSpec{
+			Name: "my-other-app",
+		},
+		Status: v1alpha1.TsuruAppAdressStatus{
+			Ready: true,
+			RouterIPs: []string{
+				"1.1.1.1",
+				"2.2.2.2",
+			},
+		},
+	}
+
 	reconciler := &ACLReconciler{
-		Client:   fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(acl, dnsEntry1, dnsEntry2).Build(),
+		Client:   fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(acl, dnsEntry1, dnsEntry2, tsuruAppAddress).Build(),
 		Scheme:   scheme.Scheme,
+		Resolver: &fakeResolver{},
 		TsuruAPI: &fakeTsuruAPI{},
 	}
 	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{
@@ -241,6 +260,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationRPaaSReconcile() {
 	reconciler := &ACLReconciler{
 		Client:   fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(acl, dnsEntry1, dnsEntry2).Build(),
 		Scheme:   scheme.Scheme,
+		Resolver: &fakeResolver{},
 		TsuruAPI: &fakeTsuruAPI{},
 	}
 	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{
@@ -255,6 +275,8 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationRPaaSReconcile() {
 	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(acl), existingACL)
 	suite.Require().NoError(err)
 	suite.Assert().True(existingACL.Status.Ready)
+	suite.Assert().Equal("", existingACL.Status.Reason)
+	suite.Assert().Len(existingACL.Status.WarningErrors, 0)
 
 	existingNP := &netv1.NetworkPolicy{}
 	err = reconciler.Client.Get(ctx, client.ObjectKey{
