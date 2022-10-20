@@ -2,4 +2,5 @@
 resources:
 - cache_v1alpha1_acl.yaml
 - _v1alpha1_ACLDNSEntry.yaml
+- _v1alpha1_tsuruappadress.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

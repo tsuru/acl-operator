@@ -18,12 +18,15 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	"github.com/tsuru/acl-operator/api/scheme"
+	"go.uber.org/zap/zapcore"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	"github.com/tsuru/acl-operator/api/scheme"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -51,30 +54,55 @@ func main() {
 	var tsuruAPIAddr string
 	var tsuruAPIToken string
 
-	flag.StringVar(&aclAPIAddr, "acl-api-address", "", "The address of ACL API")
-	flag.StringVar(&aclAPIUser, "acl-api-user", "", "The user of ACL API")
-	flag.StringVar(&aclAPIPassword, "acl-api-password", "", "The password of ACL API")
+	flag.StringVar(&aclAPIAddr, "acl-api-address", "", "The address of ACL API [required]")
+	flag.StringVar(&aclAPIUser, "acl-api-user", "", "The user of ACL API [required]")
+	flag.StringVar(&aclAPIPassword, "acl-api-password", "", "The password of ACL API [required]")
 
-	flag.StringVar(&aclAPIAddr, "acl-api-address", "", "The address of ACL API")
-	flag.StringVar(&aclAPIUser, "acl-api-user", "", "The user of ACL API")
-	flag.StringVar(&aclAPIPassword, "acl-api-password", "", "The password of ACL API")
-
-	flag.StringVar(&tsuruAPIAddr, "tsuru-api-address", "", "The address of Tsuru API")
-	flag.StringVar(&tsuruAPIToken, "tsuru-api-token", "", "The token of Tsuru API")
+	flag.StringVar(&tsuruAPIAddr, "tsuru-api-address", "", "The address of Tsuru API [required]")
+	flag.StringVar(&tsuruAPIToken, "tsuru-api-token", "", "The token of Tsuru API [required")
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+
 	opts := zap.Options{
-		Development: true,
+		Development:     true,
+		StacktraceLevel: zapcore.DPanicLevel,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	logger := zap.New(zap.UseFlagOptions(&opts))
 
+	ctrl.SetLogger(logger)
+
+	tsuruAppReconciler := true
+	if aclAPIAddr == "" || aclAPIUser == "" || aclAPIPassword == "" {
+		logger.Info("TsuruAppReconciler is disabled due a missing acl api settings")
+		tsuruAppReconciler = false
+	}
+
+	if tsuruAPIAddr == "" {
+		tsuruAPIAddr = os.Getenv("TSURU_TARGET")
+	}
+
+	if tsuruAPIToken == "" {
+		tsuruAPIToken = os.Getenv("TSURU_TOKEN")
+	}
+
+	if tsuruAPIAddr == "" {
+		fmt.Println("TSURU_TARGET env or tsuru-api-address flag is not defined")
+		os.Exit(1)
+	}
+
+	if tsuruAPIToken == "" {
+		fmt.Println("TSURU_TOKEN env or tsuru-api-token flag is not defined")
+		os.Exit(1)
+	}
+
+	tsuruAPI := tsuruapi.New(tsuruAPIAddr, tsuruAPIToken)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme.Scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -102,7 +130,7 @@ func main() {
 	if err = (&controllers.ACLReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		TsuruAPI: tsuruapi.New(tsuruAPIAddr, tsuruAPIToken),
+		TsuruAPI: tsuruAPI,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ACL")
 		os.Exit(1)
@@ -115,19 +143,33 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "ACLDNSEntry")
 		os.Exit(1)
 	}
-	if err = (&controllers.TsuruAppReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		ACLAPI: aclapi.New(aclAPIAddr, aclAPIUser, aclAPIPassword),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "TsuruAppReconciler")
-		os.Exit(1)
+
+	if tsuruAppReconciler {
+		if err = (&controllers.TsuruAppReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+			ACLAPI: aclapi.New(aclAPIAddr, aclAPIUser, aclAPIPassword),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "TsuruAppReconciler")
+			os.Exit(1)
+		}
 	}
+
 	if err = (&controllers.RpaasInstanceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RpaasInstanceReconciler")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.TsuruAppAdressReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Resolver: controllers.DefaultResolver,
+		TsuruAPI: tsuruAPI,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "TsuruAppAdress")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

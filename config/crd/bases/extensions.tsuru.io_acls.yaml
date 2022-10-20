@@ -124,6 +124,10 @@ spec:
                 type: boolean
               reason:
                 type: string
+              warningErrors:
+                items:
+                  type: string
+                type: array
             required:
             - ready
             type: object

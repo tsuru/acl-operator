@@ -25,7 +25,6 @@ import (
 
 	"github.com/pkg/errors"
 	tsuruErrors "github.com/tsuru/tsuru/errors"
-	tsuruNet "github.com/tsuru/tsuru/net"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -230,6 +229,8 @@ func (r *ACLReconciler) egressRulesForDestination(ctx context.Context, destinati
 }
 
 func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp string) ([]netv1.NetworkPolicyEgressRule, error) {
+	l := log.FromContext(ctx)
+
 	allErrors := &tsuruErrors.MultiError{}
 	egress := []netv1.NetworkPolicyEgressRule{
 		{
@@ -244,31 +245,20 @@ func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp str
 		},
 	}
 
-	appInfo, err := r.TsuruAPI.AppInfo(ctx, tsuruApp)
+	existingTsuruAppAddress, err := r.ensureTsuruAppAddress(ctx, tsuruApp)
 
 	if err != nil {
-		allErrors.Add(errors.Wrap(err, "could not get tsuru app info"))
-		return egress, allErrors.ToError()
+		l.Error(err, "could not get TsuruAppAdress", "appName", tsuruApp)
+		return nil, err
 	}
 
-	addrs := make([]string, 0, len(appInfo.Routers))
-	for _, r := range appInfo.Routers {
-		if len(r.Addresses) > 0 {
-			for _, addr := range r.Addresses {
-				addrs = append(addrs, tsuruNet.URLToHost(addr))
-			}
-		} else {
-			addrs = append(addrs, tsuruNet.URLToHost(r.Address))
-		}
-	}
-
-	for _, addr := range addrs {
-		addrEgresses, err := r.egressRulesForExternalDNS(ctx, &v1alpha1.ACLSpecExternalDNS{
-			Name: addr,
+	for _, routerIP := range existingTsuruAppAddress.Status.RouterIPs {
+		addrEgresses, err := r.egressRulesForExternalIP(ctx, &v1alpha1.ACLSpecExternalIP{
+			IP: routerIP,
 		})
 
 		if err != nil {
-			allErrors.Add(errors.Wrapf(err, "could not generate egress rule for: %q", addr))
+			allErrors.Add(errors.Wrapf(err, "could not generate egress rule for: %q", routerIP))
 		}
 
 		egress = append(egress, addrEgresses...)
@@ -343,12 +333,23 @@ func (r *ACLReconciler) egressRulesForExternalDNS(ctx context.Context, externalD
 }
 
 func (r *ACLReconciler) egressRulesForExternalIP(ctx context.Context, externalIP *v1alpha1.ACLSpecExternalIP) ([]netv1.NetworkPolicyEgressRule, error) {
+	var cidr string
+
+	cidr = externalIP.IP
+	if !strings.Contains(cidr, "/") {
+		if strings.Contains(cidr, ":") {
+			cidr = cidr + "/128"
+		} else if strings.Contains(cidr, ".") {
+			cidr = cidr + "/32"
+		}
+	}
+
 	egress := []netv1.NetworkPolicyEgressRule{
 		{
 			To: []netv1.NetworkPolicyPeer{
 				{
 					IPBlock: &netv1.IPBlock{
-						CIDR: externalIP.IP,
+						CIDR: cidr,
 					},
 				},
 			},
@@ -449,6 +450,60 @@ func (r *ACLReconciler) ensureDNSEntry(ctx context.Context, host string) (*v1alp
 	}
 
 	return existingDNSEntry, nil
+}
+
+func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName string) (*v1alpha1.TsuruAppAdress, error) {
+	l := log.FromContext(ctx)
+
+	existingTsuruAppAddress := &v1alpha1.TsuruAppAdress{}
+	resourceName := appName
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Name: resourceName,
+	}, existingTsuruAppAddress)
+
+	if k8sErrors.IsNotFound(err) {
+		tsuruAppAddress := &v1alpha1.TsuruAppAdress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: resourceName,
+			},
+			Spec: v1alpha1.TsuruAppAdressSpec{
+				Name: resourceName,
+			},
+		}
+
+		err = r.Client.Create(ctx, tsuruAppAddress)
+		if err != nil {
+			l.Error(err, "could not create ACLDNSEntry object")
+			return nil, err
+		}
+
+		subReconciler := &TsuruAppAdressReconciler{
+			Client:   r.Client,
+			Scheme:   r.Scheme,
+			Resolver: DefaultResolver,
+		}
+
+		_, err = subReconciler.Reconcile(ctx, ctrl.Request{
+			NamespacedName: types.NamespacedName{
+				Name: tsuruAppAddress.Name,
+			},
+		})
+
+		if err != nil {
+			l.Error(err, "could not sub-reconcicle TsuruAppAdress", "tsuruAppName", resourceName)
+			return nil, err
+		}
+
+		err = r.Client.Get(ctx, types.NamespacedName{
+			Name: resourceName,
+		}, existingTsuruAppAddress)
+		return existingTsuruAppAddress, err
+	} else if err != nil {
+		l.Error(err, "could not get TsuruAppAdress", "tsuruAppName", resourceName)
+		return nil, err
+	}
+
+	return existingTsuruAppAddress, nil
 }
 
 func (r *ACLReconciler) ports(p []v1alpha1.ProtoPort) []netv1.NetworkPolicyPort {

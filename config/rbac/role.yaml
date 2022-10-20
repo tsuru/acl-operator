@@ -57,3 +57,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
+  - tsuruappadresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
+  - tsuruappadresses/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - extensions.tsuru.io
+  resources:
+  - tsuruappadresses/status
+  verbs:
+  - get
+  - patch
+  - update
