@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 	"net"
+	"net/url"
+	"strconv"
 	"strings"
 
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -53,7 +55,7 @@ func (r *RpaasInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	rpaasInstanceName := rpaasInstance.Labels["rpaas.extensions.tsuru.io/instance-name"]
 	rpaasServiceName := rpaasInstance.Labels["rpaas.extensions.tsuru.io/service-name"]
 
-	destinations, errs := convertRPaasAllowedUpstreamsToOperatorRules(rpaasInstance.Spec.AllowedUpstreams)
+	destinations, errs := convertRPaasAllowedUpstreamsToOperatorRules(rpaasInstance.Spec.AllowedUpstreams, rpaasInstance.Spec.Binds)
 	warningErrors := []string{}
 	for _, e := range errs {
 		warningErrors = append(warningErrors, e.Error())
@@ -145,7 +147,7 @@ func (r *RpaasInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}, nil
 }
 
-func convertRPaasAllowedUpstreamsToOperatorRules(allowedUpstreams []rpaasv1alpha1.AllowedUpstream) ([]v1alpha1.ACLSpecDestination, []error) {
+func convertRPaasAllowedUpstreamsToOperatorRules(allowedUpstreams []rpaasv1alpha1.AllowedUpstream, binds []rpaasv1alpha1.Bind) ([]v1alpha1.ACLSpecDestination, []error) {
 	result := []v1alpha1.ACLSpecDestination{}
 	for _, allowedUpstream := range allowedUpstreams {
 		if isIPRange(allowedUpstream.Host) {
@@ -175,6 +177,37 @@ func convertRPaasAllowedUpstreamsToOperatorRules(allowedUpstreams []rpaasv1alpha
 		}
 	}
 
+	for _, bind := range binds {
+		result = append(result, v1alpha1.ACLSpecDestination{
+			TsuruApp: bind.Name,
+		})
+
+		if !isKubernetesInternal(bind.Host) {
+			host, port, _ := parseHostPort(bind.Host)
+
+			if host == "" {
+				continue
+			}
+
+			var ports []v1alpha1.ProtoPort
+			if port != 0 {
+				ports = []v1alpha1.ProtoPort{
+					{
+						Protocol: "tcp",
+						Number:   uint16(port),
+					},
+				}
+			}
+
+			result = append(result, v1alpha1.ACLSpecDestination{
+				ExternalDNS: &v1alpha1.ACLSpecExternalDNS{
+					Name:  host,
+					Ports: ports,
+				},
+			})
+		}
+	}
+
 	return result, nil
 }
 
@@ -188,6 +221,47 @@ func isIPRange(name string) bool {
 
 	_, _, err := net.ParseCIDR(address)
 	return err == nil
+}
+
+func parseHostPort(addr string) (string, int, error) {
+	port := 80
+	host := ""
+	u, err := url.Parse(addr)
+	if err != nil {
+		return "", 0, err
+	}
+
+	if u != nil {
+		if u.Scheme == "https" {
+			port = 443
+		}
+
+		if u.Host != "" {
+			host = u.Host
+		}
+	}
+
+	if strings.Contains(host, ":") {
+		var portStr string
+		host, portStr, _ = net.SplitHostPort(host)
+		port, _ = strconv.Atoi(portStr)
+	}
+
+	if host == "" && strings.Contains(addr, ":") { // could be a host:port pair
+		var portStr string
+		host, portStr, _ = net.SplitHostPort(addr)
+		port, _ = strconv.Atoi(portStr)
+	}
+
+	if host == "" {
+		host = addr
+	}
+
+	return host, port, nil
+}
+
+func isKubernetesInternal(host string) bool {
+	return strings.Contains(host, "svc.cluster.local")
 }
 
 // SetupWithManager sets up the controller with the Manager.

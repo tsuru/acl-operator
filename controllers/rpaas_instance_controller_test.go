@@ -25,6 +25,28 @@ func (suite *ControllerSuite) TestRPaaSInstanceReconcilerSimpleReconcile() {
 			},
 		},
 		Spec: rpaasv1alpha1.RpaasInstanceSpec{
+			Binds: []rpaasv1alpha1.Bind{
+				{
+					Name: "internal-app",
+					Host: "internal-app.namespace.svc.cluster.local:8888",
+				},
+				{
+					Name: "external-app",
+					Host: "external-app.io",
+				},
+				{
+					Name: "external-app-https",
+					Host: "https://external-app.io",
+				},
+				{
+					Name: "external-app-https-port",
+					Host: "https://external-app.io:8043",
+				},
+				{
+					Name: "external-app-http-port",
+					Host: "external-app-http.io:8080",
+				},
+			},
 			AllowedUpstreams: []rpaasv1alpha1.AllowedUpstream{
 				{
 					Host: "www.facebook.com",
@@ -61,7 +83,7 @@ func (suite *ControllerSuite) TestRPaaSInstanceReconcilerSimpleReconcile() {
 	}, existingACL)
 	suite.Require().NoError(err)
 
-	suite.Require().Len(existingACL.Spec.Destinations, 3)
+	suite.Require().Len(existingACL.Spec.Destinations, 12)
 	suite.Assert().Equal(v1alpha1.ACLSpecDestination{
 		ExternalDNS: &v1alpha1.ACLSpecExternalDNS{
 			Name: "www.facebook.com",
@@ -95,6 +117,74 @@ func (suite *ControllerSuite) TestRPaaSInstanceReconcilerSimpleReconcile() {
 			},
 		},
 	}, existingACL.Spec.Destinations[2])
+
+	suite.Assert().Equal(v1alpha1.ACLSpecDestination{
+		TsuruApp: "internal-app",
+	}, existingACL.Spec.Destinations[3])
+
+	suite.Assert().Equal(v1alpha1.ACLSpecDestination{
+		TsuruApp: "external-app",
+	}, existingACL.Spec.Destinations[4])
+
+	suite.Assert().Equal(v1alpha1.ACLSpecDestination{
+		ExternalDNS: &v1alpha1.ACLSpecExternalDNS{
+			Name: "external-app.io",
+			Ports: []v1alpha1.ProtoPort{
+				{
+					Protocol: "tcp",
+					Number:   80,
+				},
+			},
+		},
+	}, existingACL.Spec.Destinations[5])
+
+	suite.Assert().Equal(v1alpha1.ACLSpecDestination{
+		TsuruApp: "external-app-https",
+	}, existingACL.Spec.Destinations[6])
+
+	suite.Assert().Equal(v1alpha1.ACLSpecDestination{
+		ExternalDNS: &v1alpha1.ACLSpecExternalDNS{
+			Name: "external-app.io",
+			Ports: []v1alpha1.ProtoPort{
+				{
+					Protocol: "tcp",
+					Number:   443,
+				},
+			},
+		},
+	}, existingACL.Spec.Destinations[7])
+
+	suite.Assert().Equal(v1alpha1.ACLSpecDestination{
+		TsuruApp: "external-app-https-port",
+	}, existingACL.Spec.Destinations[8])
+
+	suite.Assert().Equal(v1alpha1.ACLSpecDestination{
+		ExternalDNS: &v1alpha1.ACLSpecExternalDNS{
+			Name: "external-app.io",
+			Ports: []v1alpha1.ProtoPort{
+				{
+					Protocol: "tcp",
+					Number:   8043,
+				},
+			},
+		},
+	}, existingACL.Spec.Destinations[9])
+
+	suite.Assert().Equal(v1alpha1.ACLSpecDestination{
+		TsuruApp: "external-app-http-port",
+	}, existingACL.Spec.Destinations[10])
+
+	suite.Assert().Equal(v1alpha1.ACLSpecDestination{
+		ExternalDNS: &v1alpha1.ACLSpecExternalDNS{
+			Name: "external-app-http.io",
+			Ports: []v1alpha1.ProtoPort{
+				{
+					Protocol: "tcp",
+					Number:   8080,
+				},
+			},
+		},
+	}, existingACL.Spec.Destinations[11])
 }
 
 func (suite *ControllerSuite) TestRPaaSInstanceReconcilerExistingObjectReconcile() {
