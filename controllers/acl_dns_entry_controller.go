@@ -91,7 +91,10 @@ func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			l.Error(statusErr, "could not update status for ACLDNSEntry object")
 			return ctrl.Result{}, statusErr
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: time.Minute * 10,
+		}, nil
 	}
 
 	now := time.Now().UTC()

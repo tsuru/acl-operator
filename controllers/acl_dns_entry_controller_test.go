@@ -140,7 +140,7 @@ func (suite *ControllerSuite) TestACLDNSEntryReconcilerTimeoutReconcile() {
 			Name: "timeout.com.br",
 		},
 	})
-	suite.Require().Error(err, "timeout for host")
+	suite.Require().NoError(err)
 
 	existingResolver := &v1alpha1.ACLDNSEntry{}
 	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(resolver), existingResolver)
