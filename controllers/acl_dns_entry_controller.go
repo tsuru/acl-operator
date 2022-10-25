@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"net"
+	"reflect"
 	"sort"
 	"time"
 
@@ -31,6 +32,8 @@ import (
 	"github.com/tsuru/acl-operator/api/v1alpha1"
 	extensionstsuruiov1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 )
+
+const dayFormat = "2006-01-02"
 
 type ACLDNSResolver interface {
 	LookupIPAddr(context.Context, string) ([]net.IPAddr, error)
@@ -71,6 +74,8 @@ func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
+	existingStatus := resolver.Status.DeepCopy()
+
 	timoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	ipAddrs, err := r.Resolver.LookupIPAddr(timoutCtx, resolver.Spec.Host)
@@ -97,7 +102,7 @@ statusLoop:
 	for _, foundIP := range ipAddrs {
 		for i, existingIP := range resolver.Status.IPs {
 			if existingIP.Address == foundIP.IP.String() {
-				resolver.Status.IPs[i].ValidUntil = validUntil.Format(time.RFC3339)
+				resolver.Status.IPs[i].ValidUntil = validUntil.Format(dayFormat)
 				continue statusLoop
 			}
 		}
@@ -108,7 +113,7 @@ statusLoop:
 	for _, foundIP := range missingIpAddrs {
 		resolver.Status.IPs = append(resolver.Status.IPs, extensionstsuruiov1alpha1.ACLDNSEntryStatusIP{
 			Address:    foundIP.IP.String(),
-			ValidUntil: validUntil.Format(time.RFC3339),
+			ValidUntil: validUntil.Format(dayFormat),
 		})
 	}
 
@@ -118,9 +123,9 @@ statusLoop:
 
 	n := 0
 	for _, ip := range resolver.Status.IPs {
-		t, _ := time.Parse(time.RFC3339, ip.ValidUntil)
+		t, _ := time.Parse(dayFormat, ip.ValidUntil)
 
-		if !now.After(t) {
+		if !now.After(t) && !t.IsZero() {
 			resolver.Status.IPs[n] = ip
 			n++
 		}
@@ -129,10 +134,12 @@ statusLoop:
 	resolver.Status.Ready = true
 	resolver.Status.Reason = ""
 
-	err = r.Client.Status().Update(ctx, resolver)
-	if err != nil {
-		l.Error(err, "could not update status for ACLDNSEntry object")
-		return ctrl.Result{}, err
+	if !reflect.DeepEqual(existingStatus, resolver.Status) {
+		err = r.Client.Status().Update(ctx, resolver)
+		if err != nil {
+			l.Error(err, "could not update status for ACLDNSEntry object")
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil

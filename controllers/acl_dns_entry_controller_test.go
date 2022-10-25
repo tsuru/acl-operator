@@ -82,15 +82,15 @@ func (suite *ControllerSuite) TestACLDNSEntryReconcilerSimpleReconcileExisting()
 			IPs: []v1alpha1.ACLDNSEntryStatusIP{
 				{
 					Address:    "1.1.1.1",
-					ValidUntil: "2015-10-02T15:00:00Z",
+					ValidUntil: "2015-10-02",
 				},
 				{
 					Address:    "8.8.8.8",
-					ValidUntil: "2015-10-02T15:00:00Z",
+					ValidUntil: "2015-10-02",
 				},
 				{
 					Address:    "9.9.9.9",
-					ValidUntil: "2200-10-02T15:00:00Z", // I expect that someone of future wont judge-me
+					ValidUntil: "2200-10-02", // I expect that someone of future wont judge-me
 				},
 			},
 		},
