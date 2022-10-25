@@ -103,7 +103,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: generate fmt vet ## Run tests.
+test: fmt vet ## Run tests.
 	go test ./... -coverprofile cover.out
 
 ##@ Build
