@@ -60,7 +60,6 @@ spec:
               updatedAt:
                 type: string
             required:
-            - ips
             - ready
             type: object
         type: object

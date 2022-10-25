@@ -72,6 +72,18 @@ func (r *RpaasInstanceAdressReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if serviceInfo == nil {
+		rpaasInstanceAddress.Status.Ready = false
+		rpaasInstanceAddress.Status.Reason = "Service instance not found"
+
+		err = r.Client.Status().Update(ctx, rpaasInstanceAddress)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
+	}
+
 	address := ""
 	if serviceInfo.CustomInfo != nil && serviceInfo.CustomInfo["Address"] != nil {
 		address, _ = serviceInfo.CustomInfo["Address"].(string)
