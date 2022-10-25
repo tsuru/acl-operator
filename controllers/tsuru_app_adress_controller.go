@@ -73,6 +73,18 @@ func (r *TsuruAppAdressReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	if appInfo == nil {
+		appAddress.Status.Ready = false
+		appAddress.Status.Reason = "App not found"
+
+		err = r.Client.Status().Update(ctx, appAddress)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
+	}
+
 	addrs := make([]string, 0, len(appInfo.Routers))
 	for _, r := range appInfo.Routers {
 		if len(r.Addresses) > 0 {

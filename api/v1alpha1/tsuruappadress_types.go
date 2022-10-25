@@ -28,6 +28,7 @@ type TsuruAppAdressSpec struct {
 // ResourceAdressStatus defines the observed state of TsuruAppAdress and RpaasInstanceAdress
 type ResourceAdressStatus struct {
 	Ready     bool     `json:"ready"`
+	Reason    string   `json:"reason,omitempty"`
 	UpdatedAt string   `json:"updatedAt,omitempty"`
 	IPs       []string `json:"ips"`
 }

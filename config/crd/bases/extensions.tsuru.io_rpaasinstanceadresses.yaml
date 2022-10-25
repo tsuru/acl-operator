@@ -58,6 +58,8 @@ spec:
                 type: array
               ready:
                 type: boolean
+              reason:
+                type: string
               updatedAt:
                 type: string
             required:
