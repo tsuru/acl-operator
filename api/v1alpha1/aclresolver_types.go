@@ -30,7 +30,7 @@ type ACLDNSEntrySpec struct {
 
 // ACLDNSEntryStatus defines the observed state of ACLDNSEntry
 type ACLDNSEntryStatus struct {
-	IPs    []ACLDNSEntryStatusIP `json:"ips"`
+	IPs    []ACLDNSEntryStatusIP `json:"ips,omitempty"`
 	Ready  bool                  `json:"ready"`
 	Reason string                `json:"reason,omitempty"`
 }

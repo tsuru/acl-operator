@@ -249,7 +249,7 @@ func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp str
 	existingTsuruAppAddress, err := r.ensureTsuruAppAddress(ctx, tsuruApp)
 
 	if err != nil {
-		l.Error(err, "could not get TsuruAppAdress", "appName", tsuruApp)
+		l.Error(err, "could not get TsuruAppAddress", "appName", tsuruApp)
 		return nil, err
 	}
 
@@ -262,7 +262,7 @@ func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp str
 	return egress, allErrors.ToError()
 }
 
-func (r *ACLReconciler) egressRulesForResourceAddressStatus(ctx context.Context, status v1alpha1.ResourceAdressStatus) ([]netv1.NetworkPolicyEgressRule, []error) {
+func (r *ACLReconciler) egressRulesForResourceAddressStatus(ctx context.Context, status v1alpha1.ResourceAddressStatus) ([]netv1.NetworkPolicyEgressRule, []error) {
 	errs := []error{}
 	egresses := []netv1.NetworkPolicyEgressRule{}
 
@@ -464,21 +464,21 @@ func (r *ACLReconciler) ensureDNSEntry(ctx context.Context, host string) (*v1alp
 	return existingDNSEntry, nil
 }
 
-func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName string) (*v1alpha1.TsuruAppAdress, error) {
+func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName string) (*v1alpha1.TsuruAppAddress, error) {
 	l := log.FromContext(ctx)
 
-	existingTsuruAppAddress := &v1alpha1.TsuruAppAdress{}
+	existingTsuruAppAddress := &v1alpha1.TsuruAppAddress{}
 	resourceName := appName
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Name: resourceName,
 	}, existingTsuruAppAddress)
 
 	if k8sErrors.IsNotFound(err) {
-		tsuruAppAddress := &v1alpha1.TsuruAppAdress{
+		tsuruAppAddress := &v1alpha1.TsuruAppAddress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: resourceName,
 			},
-			Spec: v1alpha1.TsuruAppAdressSpec{
+			Spec: v1alpha1.TsuruAppAddressSpec{
 				Name: resourceName,
 			},
 		}
@@ -489,7 +489,7 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 			return nil, err
 		}
 
-		subReconciler := &TsuruAppAdressReconciler{
+		subReconciler := &TsuruAppAddressReconciler{
 			Client:   r.Client,
 			Scheme:   r.Scheme,
 			Resolver: r.Resolver,
@@ -503,7 +503,7 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 		})
 
 		if err != nil {
-			l.Error(err, "could not sub-reconcicle TsuruAppAdress", "tsuruAppName", resourceName)
+			l.Error(err, "could not sub-reconcicle TsuruAppAddress", "tsuruAppName", resourceName)
 			return nil, err
 		}
 
@@ -512,28 +512,28 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 		}, existingTsuruAppAddress)
 		return existingTsuruAppAddress, err
 	} else if err != nil {
-		l.Error(err, "could not get TsuruAppAdress", "tsuruAppName", resourceName)
+		l.Error(err, "could not get TsuruAppAddress", "tsuruAppName", resourceName)
 		return nil, err
 	}
 
 	return existingTsuruAppAddress, nil
 }
 
-func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasInstance *v1alpha1.ACLSpecRpaasInstance) (*v1alpha1.RpaasInstanceAdress, error) {
+func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasInstance *v1alpha1.ACLSpecRpaasInstance) (*v1alpha1.RpaasInstanceAddress, error) {
 	l := log.FromContext(ctx)
 
-	existingRpaasInstanceAddress := &v1alpha1.RpaasInstanceAdress{}
+	existingRpaasInstanceAddress := &v1alpha1.RpaasInstanceAddress{}
 	resourceName := rpaasInstance.ServiceName + "-" + rpaasInstance.Instance // TODO: treat long nome
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Name: resourceName,
 	}, existingRpaasInstanceAddress)
 
 	if k8sErrors.IsNotFound(err) {
-		rpaasInstanceAddress := &v1alpha1.RpaasInstanceAdress{
+		rpaasInstanceAddress := &v1alpha1.RpaasInstanceAddress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: resourceName,
 			},
-			Spec: v1alpha1.RpaasInstanceAdressSpec{
+			Spec: v1alpha1.RpaasInstanceAddressSpec{
 				ServiceName: rpaasInstance.ServiceName,
 				Instance:    rpaasInstance.Instance,
 			},
@@ -541,11 +541,11 @@ func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasIns
 
 		err = r.Client.Create(ctx, rpaasInstanceAddress)
 		if err != nil {
-			l.Error(err, "could not create RpaasInstanceAdress object")
+			l.Error(err, "could not create RpaasInstanceAddress object")
 			return nil, err
 		}
 
-		subReconciler := &RpaasInstanceAdressReconciler{
+		subReconciler := &RpaasInstanceAddressReconciler{
 			Client:   r.Client,
 			Scheme:   r.Scheme,
 			Resolver: r.Resolver,
@@ -559,7 +559,7 @@ func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasIns
 		})
 
 		if err != nil {
-			l.Error(err, "could not sub-reconcicle RpaasInstanceAdress", "name", resourceName)
+			l.Error(err, "could not sub-reconcicle RpaasInstanceAddress", "name", resourceName)
 			return nil, err
 		}
 
@@ -568,7 +568,7 @@ func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasIns
 		}, existingRpaasInstanceAddress)
 		return existingRpaasInstanceAddress, err
 	} else if err != nil {
-		l.Error(err, "could not get RpaasInstanceAdress", "name", resourceName)
+		l.Error(err, "could not get RpaasInstanceAddress", "name", resourceName)
 		return nil, err
 	}
 

@@ -23,8 +23,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// RpaasInstanceAdressSpec defines the desired state of RpaasInstanceAdress
-type RpaasInstanceAdressSpec struct {
+// RpaasInstanceAddressSpec defines the desired state of RpaasInstanceAddress
+type RpaasInstanceAddressSpec struct {
 	ServiceName string `json:"serviceName,omitempty"`
 	Instance    string `json:"instance,omitempty"`
 }
@@ -35,24 +35,24 @@ type RpaasInstanceAdressSpec struct {
 //+kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
 //+kubebuilder:printcolumn:name="Addresses",type=string,JSONPath=`.status.ips[*]`
 
-// RpaasInstanceAdress is the Schema for the rpaasinstanceadresses API
-type RpaasInstanceAdress struct {
+// RpaasInstanceAddress is the Schema for the rpaasinstanceaddresses API
+type RpaasInstanceAddress struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RpaasInstanceAdressSpec `json:"spec,omitempty"`
-	Status ResourceAdressStatus    `json:"status,omitempty"`
+	Spec   RpaasInstanceAddressSpec `json:"spec,omitempty"`
+	Status ResourceAddressStatus    `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// RpaasInstanceAdressList contains a list of RpaasInstanceAdress
-type RpaasInstanceAdressList struct {
+// RpaasInstanceAddressList contains a list of RpaasInstanceAddress
+type RpaasInstanceAddressList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []RpaasInstanceAdress `json:"items"`
+	Items           []RpaasInstanceAddress `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&RpaasInstanceAdress{}, &RpaasInstanceAdressList{})
+	SchemeBuilder.Register(&RpaasInstanceAddress{}, &RpaasInstanceAddressList{})
 }

@@ -1,6 +1,6 @@
 apiVersion: extensions.tsuru.io/v1alpha1
-kind: TsuruAppAdress
+kind: TsuruAppAddress
 metadata:
-  name: tsuruappadress-sample
+  name: tsuruappaddress-sample
 spec:
   # TODO(user): Add fields here

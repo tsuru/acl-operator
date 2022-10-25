@@ -174,22 +174,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.TsuruAppAdressReconciler{
+	if err = (&controllers.TsuruAppAddressReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Resolver: controllers.DefaultResolver,
 		TsuruAPI: tsuruAPI,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "TsuruAppAdress")
+		setupLog.Error(err, "unable to create controller", "controller", "TsuruAppAddress")
 		os.Exit(1)
 	}
-	if err = (&controllers.RpaasInstanceAdressReconciler{
+	if err = (&controllers.RpaasInstanceAddressReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Resolver: controllers.DefaultResolver,
 		TsuruAPI: tsuruAPI,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RpaasInstanceAdress")
+		setupLog.Error(err, "unable to create controller", "controller", "RpaasInstanceAddress")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

@@ -32,36 +32,36 @@ import (
 	"github.com/tsuru/acl-operator/clients/tsuruapi"
 )
 
-// RpaasInstanceAdressReconciler reconciles a RpaasInstanceAdress object
-type RpaasInstanceAdressReconciler struct {
+// RpaasInstanceAddressReconciler reconciles a RpaasInstanceAddress object
+type RpaasInstanceAddressReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Resolver ACLDNSResolver
 	TsuruAPI tsuruapi.Client
 }
 
-//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=rpaasinstanceadresses,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=rpaasinstanceadresses/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=rpaasinstanceadresses/finalizers,verbs=update
+//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=rpaasinstanceaddresses,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=rpaasinstanceaddresses/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=rpaasinstanceaddresses/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the RpaasInstanceAdress object against the actual cluster state, and then
+// the RpaasInstanceAddress object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *RpaasInstanceAdressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *RpaasInstanceAddressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	rpaasInstanceAddress := &v1alpha1.RpaasInstanceAdress{}
+	rpaasInstanceAddress := &v1alpha1.RpaasInstanceAddress{}
 	err := r.Client.Get(ctx, req.NamespacedName, rpaasInstanceAddress)
 	if k8sErrors.IsNotFound(err) {
 		return ctrl.Result{}, nil
 	} else if err != nil {
-		l.Error(err, "could not get RpaasInstanceAdress object")
+		l.Error(err, "could not get RpaasInstanceAddress object")
 		return ctrl.Result{}, err
 	}
 
@@ -116,8 +116,8 @@ func (r *RpaasInstanceAdressReconciler) Reconcile(ctx context.Context, req ctrl.
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RpaasInstanceAdressReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RpaasInstanceAddressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&extensionstsuruiov1alpha1.RpaasInstanceAdress{}).
+		For(&extensionstsuruiov1alpha1.RpaasInstanceAddress{}).
 		Complete(r)
 }

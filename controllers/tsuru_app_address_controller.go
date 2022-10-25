@@ -35,36 +35,36 @@ import (
 	tsuruNet "github.com/tsuru/tsuru/net"
 )
 
-// TsuruAppAdressReconciler reconciles a TsuruAppAdress object
-type TsuruAppAdressReconciler struct {
+// TsuruAppAddressReconciler reconciles a TsuruAppAddress object
+type TsuruAppAddressReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	Resolver ACLDNSResolver
 	TsuruAPI tsuruapi.Client
 }
 
-//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=tsuruappadresses,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=tsuruappadresses/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=tsuruappadresses/finalizers,verbs=update
+//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=tsuruappaddresses,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=tsuruappaddresses/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=extensions.tsuru.io,resources=tsuruappaddresses/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the TsuruAppAdress object against the actual cluster state, and then
+// the TsuruAppAddress object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
-func (r *TsuruAppAdressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *TsuruAppAddressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	appAddress := &v1alpha1.TsuruAppAdress{}
+	appAddress := &v1alpha1.TsuruAppAddress{}
 	err := r.Client.Get(ctx, req.NamespacedName, appAddress)
 	if k8sErrors.IsNotFound(err) {
 		return ctrl.Result{}, nil
 	} else if err != nil {
-		l.Error(err, "could not get TsuruAppAdress object")
+		l.Error(err, "could not get TsuruAppAddress object")
 		return ctrl.Result{}, err
 	}
 
@@ -129,15 +129,15 @@ func (r *TsuruAppAdressReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{}, nil
 }
 
-func (r *TsuruAppAdressReconciler) resolveAddress(ctx context.Context, addr string) ([]net.IPAddr, error) {
+func (r *TsuruAppAddressReconciler) resolveAddress(ctx context.Context, addr string) ([]net.IPAddr, error) {
 	timoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	return r.Resolver.LookupIPAddr(timoutCtx, addr)
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *TsuruAppAdressReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *TsuruAppAddressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&extensionstsuruiov1alpha1.TsuruAppAdress{}).
+		For(&extensionstsuruiov1alpha1.TsuruAppAddress{}).
 		Complete(r)
 }

@@ -20,13 +20,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// TsuruAppAdressSpec defines the desired state of TsuruAppAdress
-type TsuruAppAdressSpec struct {
+// TsuruAppAddressSpec defines the desired state of TsuruAppAddress
+type TsuruAppAddressSpec struct {
 	Name string `json:"name,omitempty"`
 }
 
-// ResourceAdressStatus defines the observed state of TsuruAppAdress and RpaasInstanceAdress
-type ResourceAdressStatus struct {
+// ResourceAddressStatus defines the observed state of TsuruAppAddress and RpaasInstanceAddress
+type ResourceAddressStatus struct {
 	Ready     bool     `json:"ready"`
 	Reason    string   `json:"reason,omitempty"`
 	UpdatedAt string   `json:"updatedAt,omitempty"`
@@ -39,24 +39,24 @@ type ResourceAdressStatus struct {
 //+kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`
 //+kubebuilder:printcolumn:name="Addresses",type=string,JSONPath=`.status.ips[*]`
 
-// TsuruAppAdress is the Schema for the tsuruappadresses API
-type TsuruAppAdress struct {
+// TsuruAppAddress is the Schema for the tsuruappaddresses API
+type TsuruAppAddress struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   TsuruAppAdressSpec   `json:"spec,omitempty"`
-	Status ResourceAdressStatus `json:"status,omitempty"`
+	Spec   TsuruAppAddressSpec   `json:"spec,omitempty"`
+	Status ResourceAddressStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// TsuruAppAdressList contains a list of TsuruAppAdress
-type TsuruAppAdressList struct {
+// TsuruAppAddressList contains a list of TsuruAppAddress
+type TsuruAppAddressList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []TsuruAppAdress `json:"items"`
+	Items           []TsuruAppAddress `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&TsuruAppAdress{}, &TsuruAppAdressList{})
+	SchemeBuilder.Register(&TsuruAppAddress{}, &TsuruAppAddressList{})
 }

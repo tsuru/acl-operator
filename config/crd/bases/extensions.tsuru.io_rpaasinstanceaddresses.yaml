@@ -5,14 +5,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: tsuruappadresses.extensions.tsuru.io
+  name: rpaasinstanceaddresses.extensions.tsuru.io
 spec:
   group: extensions.tsuru.io
   names:
-    kind: TsuruAppAdress
-    listKind: TsuruAppAdressList
-    plural: tsuruappadresses
-    singular: tsuruappadress
+    kind: RpaasInstanceAddress
+    listKind: RpaasInstanceAddressList
+    plural: rpaasinstanceaddresses
+    singular: rpaasinstanceaddress
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -25,7 +25,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: TsuruAppAdress is the Schema for the tsuruappadresses API
+        description: RpaasInstanceAddress is the Schema for the rpaasinstanceaddresses
+          API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -40,14 +41,16 @@ spec:
           metadata:
             type: object
           spec:
-            description: TsuruAppAdressSpec defines the desired state of TsuruAppAdress
+            description: RpaasInstanceAddressSpec defines the desired state of RpaasInstanceAddress
             properties:
-              name:
+              instance:
+                type: string
+              serviceName:
                 type: string
             type: object
           status:
-            description: ResourceAdressStatus defines the observed state of TsuruAppAdress
-              and RpaasInstanceAdress
+            description: ResourceAddressStatus defines the observed state of TsuruAppAddress
+              and RpaasInstanceAddress
             properties:
               ips:
                 items:

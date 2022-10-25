@@ -130,14 +130,14 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 		},
 	}
 
-	tsuruAppAddress := &v1alpha1.TsuruAppAdress{
+	tsuruAppAddress := &v1alpha1.TsuruAppAddress{
 		ObjectMeta: v1.ObjectMeta{
 			Name: "my-other-app",
 		},
-		Spec: v1alpha1.TsuruAppAdressSpec{
+		Spec: v1alpha1.TsuruAppAddressSpec{
 			Name: "my-other-app",
 		},
-		Status: v1alpha1.ResourceAdressStatus{
+		Status: v1alpha1.ResourceAddressStatus{
 			Ready: true,
 			IPs: []string{
 				"1.1.1.1",

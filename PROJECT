@@ -27,7 +27,7 @@ resources:
     namespaced: true
   controller: true
   domain: extensions.tsuru.io
-  kind: TsuruAppAdress
+  kind: TsuruAppAddress
   path: github.com/tsuru/acl-operator/api/v1alpha1
   version: v1alpha1
 - api:
@@ -35,7 +35,7 @@ resources:
     namespaced: true
   controller: true
   domain: extensions.tsuru.io
-  kind: RpaasInstanceAdress
+  kind: RpaasInstanceAddress
   path: github.com/tsuru/acl-operator/api/v1alpha1
   version: v1alpha1
 version: "3"

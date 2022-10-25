@@ -67,7 +67,6 @@ spec:
               reason:
                 type: string
             required:
-            - ips
             - ready
             type: object
         type: object

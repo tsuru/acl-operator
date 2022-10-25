@@ -1,13 +1,13 @@
-# permissions for end users to edit rpaasinstanceadresses.
+# permissions for end users to edit tsuruappaddresses.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: rpaasinstanceadress-editor-role
+  name: tsuruappaddress-editor-role
 rules:
 - apiGroups:
   - extensions.tsuru.io
   resources:
-  - rpaasinstanceadresses
+  - tsuruappaddresses
   verbs:
   - create
   - delete
@@ -19,6 +19,6 @@ rules:
 - apiGroups:
   - extensions.tsuru.io
   resources:
-  - rpaasinstanceadresses/status
+  - tsuruappaddresses/status
   verbs:
   - get
