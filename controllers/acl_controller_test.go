@@ -3,8 +3,11 @@ package controllers
 import (
 	"context"
 	"errors"
+	"strings"
+	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/tsuru/acl-operator/api/scheme"
 	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 	"github.com/tsuru/acl-operator/clients/tsuruapi"
@@ -14,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -346,4 +350,26 @@ func (f *fakeTsuruAPI) ServiceInstanceInfo(ctx context.Context, service, instanc
 	}
 
 	return nil, errors.New("not implemented yet")
+}
+
+func TestValidResourceName(t *testing.T) {
+	expectations := map[string]string{
+		"user":         "user",
+		"*.globo.com":  "globo.com-102f523825",
+		".google.com":  "google.com-5d59719991",
+		"10.1.1.1/10":  "10.1.1.1-10-22f870d4a0",
+		"facebook.com": "facebook.com",
+
+		strings.Repeat("testing-", 30): "testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing-testing--2744fb94f9",
+	}
+
+	for input, expectedOutput := range expectations {
+		output := validResourceName(input)
+		assert.Equal(t, expectedOutput, output, "input", input)
+
+		errs := validation.IsDNS1123Subdomain(output)
+
+		assert.Len(t, errs, 0)
+	}
+
 }

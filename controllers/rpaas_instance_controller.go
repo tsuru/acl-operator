@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
@@ -268,5 +269,6 @@ func isKubernetesInternal(host string) bool {
 func (r *RpaasInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rpaasv1alpha1.RpaasInstance{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 2, RecoverPanic: true}).
 		Complete(r)
 }

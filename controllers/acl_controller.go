@@ -18,8 +18,11 @@ package controllers
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,8 +32,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
@@ -55,15 +60,6 @@ type ACLReconciler struct {
 //+kubebuilder:rbac:groups=extensions.tsuru.io,resources=acls/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=extensions.tsuru.io,resources=acls/finalizers,verbs=update
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the ACL object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
@@ -414,7 +410,8 @@ func (r *ACLReconciler) ensureDNSEntry(ctx context.Context, host string) (*v1alp
 	l := log.FromContext(ctx)
 
 	existingDNSEntry := &v1alpha1.ACLDNSEntry{}
-	resourceName := host // TODO: use shortly function to reduce size of name
+
+	resourceName := validResourceName(host)
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Name: resourceName,
 	}, existingDNSEntry)
@@ -468,7 +465,7 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 	l := log.FromContext(ctx)
 
 	existingTsuruAppAddress := &v1alpha1.TsuruAppAddress{}
-	resourceName := appName
+	resourceName := validResourceName(appName)
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Name: resourceName,
 	}, existingTsuruAppAddress)
@@ -523,7 +520,7 @@ func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasIns
 	l := log.FromContext(ctx)
 
 	existingRpaasInstanceAddress := &v1alpha1.RpaasInstanceAddress{}
-	resourceName := rpaasInstance.ServiceName + "-" + rpaasInstance.Instance // TODO: treat long nome
+	resourceName := validResourceName(rpaasInstance.ServiceName + "-" + rpaasInstance.Instance)
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Name: resourceName,
 	}, existingRpaasInstanceAddress)
@@ -610,9 +607,35 @@ func (r *ACLReconciler) podSelectorForRpasInstance(rpaasInstance *v1alpha1.ACLSp
 func (r *ACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ACL{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 4, RecoverPanic: true}).
 		Complete(r)
 }
 
 func isWildCard(name string) bool {
 	return name != "" && name[0] == '.'
+}
+
+func validResourceName(name string) string {
+	if errs := validation.IsDNS1123Subdomain(name); len(errs) == 0 {
+		return name
+	}
+
+	truncatedName := regexp.MustCompile("[^a-z0-9.-]").ReplaceAllString(name, "-")
+	truncatedName = regexp.MustCompile("^[^a-z0-9]+").ReplaceAllString(truncatedName, "")
+
+	digest := sha256String(name)[:10]
+
+	const maxChars = 253
+
+	if len(truncatedName) < maxChars-11 {
+		return truncatedName + "-" + digest
+	}
+
+	return truncatedName[:maxChars-11] + "-" + digest
+}
+
+func sha256String(str string) string {
+	hash := sha256.New()
+	fmt.Fprint(hash, str)
+	return fmt.Sprintf("%x", hash.Sum(nil))
 }
