@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -142,6 +143,10 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 func convertACLAPIRulesToOperatorRules(rules []aclapi.Rule) ([]v1alpha1.ACLSpecDestination, []error) {
 	result := []v1alpha1.ACLSpecDestination{}
 	errors := []error{}
+
+	sort.Slice(rules, func(i, j int) bool {
+		return rules[i].RuleID < rules[j].RuleID
+	})
 
 	for _, rule := range rules {
 		if rule.Removed {

@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -54,6 +55,8 @@ type ACLReconciler struct {
 	Scheme   *runtime.Scheme
 	TsuruAPI tsuruapi.Client
 	Resolver ACLDNSResolver
+
+	serviceCache atomic.Pointer[serviceCache]
 }
 
 //+kubebuilder:rbac:groups=extensions.tsuru.io,resources=acls,verbs=get;list;watch;create;update;patch;delete
@@ -131,6 +134,13 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 		// TODO: check IPBlock Rules for translate also into kubernetes labels
 		newEgressRules = append(newEgressRules, egressRules...)
+	}
+
+	err = r.fillPodSelectorByCIDR(ctx, newEgressRules)
+	if err != nil {
+		l.Error(err, "could not generate egress rule based on kubernetes selector", "destination")
+		err = r.setUnreadyStatus(ctx, acl, "could not generate egress rule based on kubernetes selector, err: "+err.Error())
+		return ctrl.Result{}, err
 	}
 
 	if len(newEgressRules) == 0 {
@@ -601,6 +611,58 @@ func (r *ACLReconciler) podSelectorForRpasInstance(rpaasInstance *v1alpha1.ACLSp
 		"rpaas.extensions.tsuru.io/instance-name": rpaasInstance.Instance,
 		"rpaas.extensions.tsuru.io/service-name":  rpaasInstance.ServiceName,
 	}
+}
+
+func (r *ACLReconciler) getServiceCache() *serviceCache {
+	s := r.serviceCache.Load()
+	if s == nil {
+		s = &serviceCache{
+			Client: r.Client,
+		}
+		r.serviceCache.Store(s)
+	}
+
+	return s
+}
+
+func (r *ACLReconciler) fillPodSelectorByCIDR(ctx context.Context, rules []netv1.NetworkPolicyEgressRule) error {
+	serviceCache := r.getServiceCache()
+	for i, egressRule := range rules {
+		newDestinations := []netv1.NetworkPolicyPeer{}
+
+	toLoop:
+		for _, to := range egressRule.To {
+			if to.IPBlock != nil {
+				if strings.HasSuffix(to.IPBlock.CIDR, "/32") || strings.HasSuffix(to.IPBlock.CIDR, "/128") {
+					ip := strings.Split(to.IPBlock.CIDR, "/")[0]
+
+					svc, err := serviceCache.GetByIP(ctx, ip)
+					if err != nil {
+						return err
+					}
+
+					if svc == nil {
+						continue toLoop
+					}
+
+					newDestinations = append(newDestinations, netv1.NetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: svc.Spec.Selector,
+						},
+						NamespaceSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"name": svc.Namespace, // we have a common practice to add name of namespace as a label
+							},
+						},
+					})
+				}
+			}
+		}
+
+		rules[i].To = append(rules[i].To, newDestinations...)
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -13,6 +13,7 @@ import (
 	"github.com/tsuru/acl-operator/clients/tsuruapi"
 	"github.com/tsuru/tsuru/app"
 	appTypes "github.com/tsuru/tsuru/types/app"
+	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,8 +151,34 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 		},
 	}
 
+	// 1.1.1.1 is also running on kubernetes
+	svc := &corev1.Service{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "my-awesome-service",
+			Namespace: "default",
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeLoadBalancer,
+			Selector: map[string]string{
+				"svc": "my-awesome-service",
+			},
+		},
+		Status: corev1.ServiceStatus{
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{
+					{
+						IP: "1.1.1.1",
+					},
+				},
+			},
+		},
+	}
+
 	reconciler := &ACLReconciler{
-		Client:   fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(acl, dnsEntry1, dnsEntry2, tsuruAppAddress).Build(),
+		Client: fake.NewClientBuilder().
+			WithScheme(scheme.Scheme).
+			WithRuntimeObjects(acl, dnsEntry1, dnsEntry2, tsuruAppAddress, svc).
+			Build(),
 		Scheme:   scheme.Scheme,
 		Resolver: &fakeResolver{},
 		TsuruAPI: &fakeTsuruAPI{},
@@ -181,7 +208,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 	suite.Assert().Len(existingNP.Spec.Egress, 3)
 
 	suite.Assert().Len(existingNP.Spec.Egress[0].To, 1)
-	suite.Assert().Len(existingNP.Spec.Egress[1].To, 1)
+	suite.Assert().Len(existingNP.Spec.Egress[1].To, 2)
 	suite.Assert().Len(existingNP.Spec.Egress[2].To, 1)
 
 	suite.Assert().Equal(netv1.NetworkPolicyPeer{
@@ -196,6 +223,18 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 			CIDR: "1.1.1.1/32",
 		},
 	}, existingNP.Spec.Egress[1].To[0])
+	suite.Assert().Equal(netv1.NetworkPolicyPeer{
+		PodSelector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"svc": "my-awesome-service",
+			},
+		},
+		NamespaceSelector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"name": "default",
+			},
+		},
+	}, existingNP.Spec.Egress[1].To[1])
 
 	suite.Assert().Equal(netv1.NetworkPolicyPeer{
 		IPBlock: &netv1.IPBlock{
