@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,6 +46,11 @@ func (suite *ControllerSuite) TestACLReconcilerSimpleReconcile() {
 								Number:   80,
 							},
 						},
+					},
+				},
+				{
+					ExternalIP: &v1alpha1.ACLSpecExternalIP{
+						IP: "1.1.1.1/32",
 					},
 				},
 			},
@@ -79,6 +85,34 @@ func (suite *ControllerSuite) TestACLReconcilerSimpleReconcile() {
 	suite.Assert().Equal(map[string]string{
 		"tsuru.io/app-name": "myapp",
 	}, existingNP.Spec.PodSelector.MatchLabels)
+	tcp := corev1.ProtocolTCP
+	suite.Assert().Equal(netv1.NetworkPolicyEgressRule{
+		Ports: []netv1.NetworkPolicyPort{
+			{
+				Port: &intstr.IntOrString{
+					IntVal: 80,
+				},
+				Protocol: &tcp,
+			},
+		},
+		To: []netv1.NetworkPolicyPeer{
+			{
+				IPBlock: &netv1.IPBlock{
+					CIDR: "100.100.100.100/32",
+				},
+			},
+		},
+	}, existingNP.Spec.Egress[0])
+
+	suite.Assert().Equal(netv1.NetworkPolicyEgressRule{
+		To: []netv1.NetworkPolicyPeer{
+			{
+				IPBlock: &netv1.IPBlock{
+					CIDR: "1.1.1.1/32",
+				},
+			},
+		},
+	}, existingNP.Spec.Egress[1])
 }
 
 func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {

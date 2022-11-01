@@ -564,7 +564,7 @@ func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasIns
 }
 
 func (r *ACLReconciler) ports(p []v1alpha1.ProtoPort) []netv1.NetworkPolicyPort {
-	result := []netv1.NetworkPolicyPort{}
+	var result []netv1.NetworkPolicyPort
 	for _, port := range p {
 		var protocol *corev1.Protocol
 		if port.Protocol != "" {
