@@ -270,5 +270,6 @@ func (r *RpaasInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rpaasv1alpha1.RpaasInstance{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 2, RecoverPanic: true}).
+		Owns(&rpaasv1alpha1.RpaasInstance{}).
 		Complete(r)
 }

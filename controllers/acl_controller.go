@@ -670,6 +670,7 @@ func (r *ACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ACL{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 4, RecoverPanic: true}).
+		Owns(&netv1.NetworkPolicy{}).
 		Complete(r)
 }
 
