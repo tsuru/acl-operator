@@ -448,21 +448,14 @@ func (r *ACLReconciler) ensureDNSEntry(ctx context.Context, host string) (*v1alp
 			Resolver: r.Resolver,
 		}
 
-		_, err = subReconciler.Reconcile(ctx, ctrl.Request{
-			NamespacedName: types.NamespacedName{
-				Name: dnsEntry.Name,
-			},
-		})
+		err = subReconciler.FillStatus(ctx, dnsEntry)
 
 		if err != nil {
-			l.Error(err, "could not sub-reconcicle DNSEntry", "dnsEntryName", resourceName)
+			l.Error(err, "could not fill status for DNSEntry", "dnsEntryName", resourceName)
 			return nil, err
 		}
 
-		err = r.Client.Get(ctx, types.NamespacedName{
-			Name: resourceName,
-		}, existingDNSEntry)
-		return existingDNSEntry, err
+		return dnsEntry, nil
 	} else if err != nil {
 		l.Error(err, "could not get ACLDNSEntry", "dnsEntryName", resourceName)
 		return nil, err
@@ -503,21 +496,13 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 			TsuruAPI: r.TsuruAPI,
 		}
 
-		_, err = subReconciler.Reconcile(ctx, ctrl.Request{
-			NamespacedName: types.NamespacedName{
-				Name: tsuruAppAddress.Name,
-			},
-		})
-
+		err = subReconciler.FillStatus(ctx, tsuruAppAddress)
 		if err != nil {
-			l.Error(err, "could not sub-reconcicle TsuruAppAddress", "tsuruAppName", resourceName)
+			l.Error(err, "could not fill status of TsuruAppAddress", "tsuruAppName", resourceName)
 			return nil, err
 		}
 
-		err = r.Client.Get(ctx, types.NamespacedName{
-			Name: resourceName,
-		}, existingTsuruAppAddress)
-		return existingTsuruAppAddress, err
+		return tsuruAppAddress, nil
 	} else if err != nil {
 		l.Error(err, "could not get TsuruAppAddress", "tsuruAppName", resourceName)
 		return nil, err
@@ -559,21 +544,13 @@ func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasIns
 			TsuruAPI: r.TsuruAPI,
 		}
 
-		_, err = subReconciler.Reconcile(ctx, ctrl.Request{
-			NamespacedName: types.NamespacedName{
-				Name: rpaasInstanceAddress.Name,
-			},
-		})
+		err = subReconciler.FillStatus(ctx, rpaasInstanceAddress)
 
 		if err != nil {
-			l.Error(err, "could not sub-reconcicle RpaasInstanceAddress", "name", resourceName)
+			l.Error(err, "could not fill status of RpaasInstanceAddress", "name", resourceName)
 			return nil, err
 		}
-
-		err = r.Client.Get(ctx, types.NamespacedName{
-			Name: resourceName,
-		}, existingRpaasInstanceAddress)
-		return existingRpaasInstanceAddress, err
+		return rpaasInstanceAddress, err
 	} else if err != nil {
 		l.Error(err, "could not get RpaasInstanceAddress", "name", resourceName)
 		return nil, err

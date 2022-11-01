@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"time"
 
@@ -32,6 +33,8 @@ import (
 	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 	"github.com/tsuru/acl-operator/clients/tsuruapi"
 )
+
+var errInstanceNotFound = errors.New("Service instance not found")
 
 // RpaasInstanceAddressReconciler reconciles a RpaasInstanceAddress object
 type RpaasInstanceAddressReconciler struct {
@@ -57,7 +60,8 @@ func (r *RpaasInstanceAddressReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, err
 	}
 
-	serviceInfo, err := r.TsuruAPI.ServiceInstanceInfo(ctx, rpaasInstanceAddress.Spec.ServiceName, rpaasInstanceAddress.Spec.Instance)
+	oldStatus := rpaasInstanceAddress.Status.DeepCopy()
+	err = r.FillStatus(ctx, rpaasInstanceAddress)
 
 	if err != nil {
 		rpaasInstanceAddress.Status.Ready = false
@@ -74,16 +78,25 @@ func (r *RpaasInstanceAddressReconciler) Reconcile(ctx context.Context, req ctrl
 		}, nil
 	}
 
-	if serviceInfo == nil {
-		rpaasInstanceAddress.Status.Ready = false
-		rpaasInstanceAddress.Status.Reason = "Service instance not found"
-
+	if oldStatus.Ready != rpaasInstanceAddress.Status.Ready || !reflect.DeepEqual(oldStatus.IPs, rpaasInstanceAddress.Status.IPs) {
 		err = r.Client.Status().Update(ctx, rpaasInstanceAddress)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+	}
 
-		return ctrl.Result{}, nil
+	return ctrl.Result{}, nil
+}
+
+func (r *RpaasInstanceAddressReconciler) FillStatus(ctx context.Context, rpaasInstanceAddress *v1alpha1.RpaasInstanceAddress) error {
+	serviceInfo, err := r.TsuruAPI.ServiceInstanceInfo(ctx, rpaasInstanceAddress.Spec.ServiceName, rpaasInstanceAddress.Spec.Instance)
+
+	if err != nil {
+		return err
+	}
+
+	if serviceInfo == nil {
+		return errInstanceNotFound
 	}
 
 	address := ""
@@ -92,7 +105,7 @@ func (r *RpaasInstanceAddressReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	if address == "" {
-		return ctrl.Result{}, nil
+		return nil
 	}
 
 	var resolvedIPs []string
@@ -100,21 +113,17 @@ func (r *RpaasInstanceAddressReconciler) Reconcile(ctx context.Context, req ctrl
 		resolvedIPs = []string{address}
 	} else {
 		// TODO: implement resolve of address
-		return ctrl.Result{}, nil
+		return nil
 	}
 
 	if !rpaasInstanceAddress.Status.Ready || !reflect.DeepEqual(resolvedIPs, rpaasInstanceAddress.Status.IPs) {
 		rpaasInstanceAddress.Status.Ready = true
+		rpaasInstanceAddress.Status.Reason = ""
 		rpaasInstanceAddress.Status.IPs = resolvedIPs
 		rpaasInstanceAddress.Status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-
-		err = r.Client.Status().Update(ctx, rpaasInstanceAddress)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
 	}
 
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

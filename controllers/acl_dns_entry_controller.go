@@ -56,9 +56,9 @@ type ACLDNSEntryReconciler struct {
 func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	resolver := &v1alpha1.ACLDNSEntry{}
+	dnsEntry := &v1alpha1.ACLDNSEntry{}
 
-	err := r.Client.Get(ctx, req.NamespacedName, resolver)
+	err := r.Client.Get(ctx, req.NamespacedName, dnsEntry)
 	if k8sErrors.IsNotFound(err) {
 		return ctrl.Result{}, nil
 	} else if err != nil {
@@ -66,19 +66,17 @@ func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	existingStatus := resolver.Status.DeepCopy()
+	existingStatus := dnsEntry.Status.DeepCopy()
 
-	timoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	ipAddrs, err := r.Resolver.LookupIPAddr(timoutCtx, resolver.Spec.Host)
+	err = r.FillStatus(ctx, dnsEntry)
 
 	if err != nil {
-		l.Error(err, "could not resolve address", "host", resolver.Spec.Host)
+		l.Error(err, "could not resolve address", "host", dnsEntry.Spec.Host)
 
-		resolver.Status.Ready = false
-		resolver.Status.Reason = err.Error()
+		dnsEntry.Status.Ready = false
+		dnsEntry.Status.Reason = err.Error()
 
-		statusErr := r.Client.Status().Update(ctx, resolver)
+		statusErr := r.Client.Status().Update(ctx, dnsEntry)
 		if statusErr != nil {
 			l.Error(statusErr, "could not update status for ACLDNSEntry object")
 			return ctrl.Result{}, statusErr
@@ -89,15 +87,35 @@ func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}, nil
 	}
 
+	if !reflect.DeepEqual(existingStatus, dnsEntry.Status) {
+		err = r.Client.Status().Update(ctx, dnsEntry)
+		if err != nil {
+			l.Error(err, "could not update status for ACLDNSEntry object")
+			return ctrl.Result{}, err
+		}
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *ACLDNSEntryReconciler) FillStatus(ctx context.Context, dnsEntry *v1alpha1.ACLDNSEntry) error {
+	timoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	ipAddrs, err := r.Resolver.LookupIPAddr(timoutCtx, dnsEntry.Spec.Host)
+
+	if err != nil {
+		return err
+	}
+
 	now := time.Now().UTC()
 	validUntil := now.Add(7 * 24 * time.Hour)
 
 	missingIpAddrs := []net.IPAddr{}
 statusLoop:
 	for _, foundIP := range ipAddrs {
-		for i, existingIP := range resolver.Status.IPs {
+		for i, existingIP := range dnsEntry.Status.IPs {
 			if existingIP.Address == foundIP.IP.String() {
-				resolver.Status.IPs[i].ValidUntil = validUntil.Format(dayFormat)
+				dnsEntry.Status.IPs[i].ValidUntil = validUntil.Format(dayFormat)
 				continue statusLoop
 			}
 		}
@@ -106,38 +124,30 @@ statusLoop:
 	}
 
 	for _, foundIP := range missingIpAddrs {
-		resolver.Status.IPs = append(resolver.Status.IPs, extensionstsuruiov1alpha1.ACLDNSEntryStatusIP{
+		dnsEntry.Status.IPs = append(dnsEntry.Status.IPs, extensionstsuruiov1alpha1.ACLDNSEntryStatusIP{
 			Address:    foundIP.IP.String(),
 			ValidUntil: validUntil.Format(dayFormat),
 		})
 	}
 
-	sort.Slice(resolver.Status.IPs, func(i, j int) bool {
-		return resolver.Status.IPs[i].Address < resolver.Status.IPs[j].Address
+	sort.Slice(dnsEntry.Status.IPs, func(i, j int) bool {
+		return dnsEntry.Status.IPs[i].Address < dnsEntry.Status.IPs[j].Address
 	})
 
 	n := 0
-	for _, ip := range resolver.Status.IPs {
+	for _, ip := range dnsEntry.Status.IPs {
 		t, _ := time.Parse(dayFormat, ip.ValidUntil)
 
 		if !now.After(t) && !t.IsZero() {
-			resolver.Status.IPs[n] = ip
+			dnsEntry.Status.IPs[n] = ip
 			n++
 		}
 	}
-	resolver.Status.IPs = resolver.Status.IPs[:n]
-	resolver.Status.Ready = true
-	resolver.Status.Reason = ""
+	dnsEntry.Status.IPs = dnsEntry.Status.IPs[:n]
+	dnsEntry.Status.Ready = true
+	dnsEntry.Status.Reason = ""
 
-	if !reflect.DeepEqual(existingStatus, resolver.Status) {
-		err = r.Client.Status().Update(ctx, resolver)
-		if err != nil {
-			l.Error(err, "could not update status for ACLDNSEntry object")
-			return ctrl.Result{}, err
-		}
-	}
-
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

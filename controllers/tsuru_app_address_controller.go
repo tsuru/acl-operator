@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"net"
 	"reflect"
 	"sort"
@@ -35,6 +36,8 @@ import (
 	"github.com/tsuru/acl-operator/clients/tsuruapi"
 	tsuruNet "github.com/tsuru/tsuru/net"
 )
+
+var errAppNotFound = errors.New("App not found")
 
 // TsuruAppAddressReconciler reconciles a TsuruAppAddress object
 type TsuruAppAddressReconciler struct {
@@ -60,21 +63,29 @@ func (r *TsuruAppAddressReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	appInfo, err := r.TsuruAPI.AppInfo(ctx, appAddress.Spec.Name)
+	oldStatus := appAddress.Status.DeepCopy()
+	err = r.FillStatus(ctx, appAddress)
 	if err != nil {
+		appAddress.Status.Ready = false
+		appAddress.Status.Reason = err.Error()
+	}
+
+	if oldStatus.Ready != appAddress.Status.Ready || !reflect.DeepEqual(oldStatus.IPs, appAddress.Status.IPs) {
+		err = r.Client.Status().Update(ctx, appAddress)
 		return ctrl.Result{}, err
 	}
 
+	return ctrl.Result{}, nil
+}
+
+func (r *TsuruAppAddressReconciler) FillStatus(ctx context.Context, appAddress *v1alpha1.TsuruAppAddress) error {
+	appInfo, err := r.TsuruAPI.AppInfo(ctx, appAddress.Spec.Name)
+	if err != nil {
+		return err
+	}
+
 	if appInfo == nil {
-		appAddress.Status.Ready = false
-		appAddress.Status.Reason = "App not found"
-
-		err = r.Client.Status().Update(ctx, appAddress)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		return ctrl.Result{}, nil
+		return errAppNotFound
 	}
 
 	addrs := make([]string, 0, len(appInfo.Routers))
@@ -109,16 +120,13 @@ func (r *TsuruAppAddressReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	if !appAddress.Status.Ready || !reflect.DeepEqual(resolvedIPs, appAddress.Status.IPs) {
 		appAddress.Status.Ready = true
+		appAddress.Status.Reason = ""
 		appAddress.Status.IPs = resolvedIPs
 		appAddress.Status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
-		err = r.Client.Status().Update(ctx, appAddress)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
 	}
 
-	return ctrl.Result{}, nil
+	return nil
 }
 
 func (r *TsuruAppAddressReconciler) resolveAddress(ctx context.Context, addr string) ([]net.IPAddr, error) {
