@@ -47,7 +47,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var requeueAfter = time.Minute * 10
+var (
+	requeueAfter = time.Minute * 10
+
+	desiredPolicyType = []netv1.PolicyType{
+		netv1.PolicyTypeEgress,
+	}
+)
 
 // ACLReconciler reconciles a ACL object
 type ACLReconciler struct {
@@ -104,10 +110,8 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		networkPolicyHasChanges = true
 	}
 
-	if (len(networkPolicy.Spec.PolicyTypes) == 1 && networkPolicy.Spec.PolicyTypes[0] != netv1.PolicyTypeEgress) || len(networkPolicy.Spec.PolicyTypes) != 1 {
-		networkPolicy.Spec.PolicyTypes = []netv1.PolicyType{
-			netv1.PolicyTypeEgress,
-		}
+	if !reflect.DeepEqual(networkPolicy.Spec.PolicyTypes, desiredPolicyType) {
+		networkPolicy.Spec.PolicyTypes = desiredPolicyType
 		networkPolicyHasChanges = true
 	}
 
