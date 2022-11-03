@@ -136,7 +136,6 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			err = r.setUnreadyStatus(ctx, acl, "could not generate egress rule for destination "+string(destinationJSON)+", err: "+err.Error())
 			return ctrl.Result{}, err
 		}
-		// TODO: check IPBlock Rules for translate also into kubernetes labels
 		newEgressRules = append(newEgressRules, egressRules...)
 	}
 
