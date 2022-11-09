@@ -249,7 +249,6 @@ func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp str
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: r.podSelectorForTsuruApp(tsuruApp),
 					},
-					// NamespaceSelector: nil, TODO: use namespace selector, the major advantage is to reduce number of pods processed by calico
 				},
 			},
 		},
@@ -260,6 +259,19 @@ func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp str
 	if err != nil {
 		l.Error(err, "could not get TsuruAppAddress", "appName", tsuruApp)
 		return nil, err
+	}
+
+	if existingTsuruAppAddress.Status.Pool != "" {
+		egress[0].To = append(egress[0].To, netv1.NetworkPolicyPeer{
+			PodSelector: &metav1.LabelSelector{
+				MatchLabels: r.podSelectorForTsuruApp(tsuruApp),
+			},
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": "tsuru-" + existingTsuruAppAddress.Status.Pool,
+				},
+			},
+		})
 	}
 
 	resourceEgress, errors := r.egressRulesForResourceAddressStatus(ctx, existingTsuruAppAddress.Status)
@@ -300,7 +312,18 @@ func (r *ACLReconciler) egressRulesForTsuruAppPool(ctx context.Context, tsuruApp
 							"tsuru.io/app-pool": tsuruAppPool,
 						},
 					},
-					// NamespaceSelector: nil, TODO: use namespace selector, the major advantage is to reduce number of pods processed by calico
+				},
+				{
+					PodSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"tsuru.io/app-pool": tsuruAppPool,
+						},
+					},
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"name": "tsuru-" + tsuruAppPool,
+						},
+					},
 				},
 			},
 		},
@@ -394,7 +417,6 @@ func (r *ACLReconciler) egressRulesForRpaasInstance(ctx context.Context, rpaasIn
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: r.podSelectorForRpasInstance(rpaasInstance),
 					},
-					// NamespaceSelector: nil, TODO: use namespace selector, the major advantage is to reduce number of pods processed by calico
 				},
 			},
 		},
@@ -410,6 +432,18 @@ func (r *ACLReconciler) egressRulesForRpaasInstance(ctx context.Context, rpaasIn
 		return nil, err
 	}
 
+	if existingRpaasInstanceAddress.Status.Pool != "" {
+		egress[0].To = append(egress[0].To, netv1.NetworkPolicyPeer{
+			PodSelector: &metav1.LabelSelector{
+				MatchLabels: r.podSelectorForRpasInstance(rpaasInstance),
+			},
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": existingRpaasInstanceAddress.Spec.ServiceName + "-" + existingRpaasInstanceAddress.Status.Pool,
+				},
+			},
+		})
+	}
 	resourceEgress, errors := r.egressRulesForResourceAddressStatus(ctx, existingRpaasInstanceAddress.Status)
 	egress = append(egress, resourceEgress...)
 	for _, err := range errors {

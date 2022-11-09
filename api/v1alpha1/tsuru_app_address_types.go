@@ -31,6 +31,7 @@ type ResourceAddressStatus struct {
 	Reason    string   `json:"reason,omitempty"`
 	UpdatedAt string   `json:"updatedAt,omitempty"`
 	IPs       []string `json:"ips,omitempty"`
+	Pool      string   `json:"pool,omitempty"`
 }
 
 //+kubebuilder:object:root=true

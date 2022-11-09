@@ -53,6 +53,8 @@ spec:
                 items:
                   type: string
                 type: array
+              pool:
+                type: string
               ready:
                 type: boolean
               reason:
