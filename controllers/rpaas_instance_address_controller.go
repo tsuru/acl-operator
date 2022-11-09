@@ -78,7 +78,7 @@ func (r *RpaasInstanceAddressReconciler) Reconcile(ctx context.Context, req ctrl
 		}, nil
 	}
 
-	if oldStatus.Ready != rpaasInstanceAddress.Status.Ready || !reflect.DeepEqual(oldStatus.IPs, rpaasInstanceAddress.Status.IPs) {
+	if oldStatus.Pool != rpaasInstanceAddress.Status.Pool || oldStatus.Ready != rpaasInstanceAddress.Status.Ready || !reflect.DeepEqual(oldStatus.IPs, rpaasInstanceAddress.Status.IPs) {
 		err = r.Client.Status().Update(ctx, rpaasInstanceAddress)
 		if err != nil {
 			return ctrl.Result{}, err

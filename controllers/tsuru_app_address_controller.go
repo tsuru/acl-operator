@@ -70,7 +70,7 @@ func (r *TsuruAppAddressReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		appAddress.Status.Reason = err.Error()
 	}
 
-	if oldStatus.Ready != appAddress.Status.Ready || !reflect.DeepEqual(oldStatus.IPs, appAddress.Status.IPs) {
+	if oldStatus.Pool != appAddress.Status.Pool || oldStatus.Ready != appAddress.Status.Ready || !reflect.DeepEqual(oldStatus.IPs, appAddress.Status.IPs) {
 		err = r.Client.Status().Update(ctx, appAddress)
 		return ctrl.Result{}, err
 	}
