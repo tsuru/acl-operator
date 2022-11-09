@@ -69,7 +69,7 @@ func (r *RpaasInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}, acl)
 
 	if k8sErrors.IsNotFound(err) {
-		if len(rpaasInstance.Spec.AllowedUpstreams) == 0 {
+		if len(destinations) == 0 {
 			return ctrl.Result{}, nil
 		}
 
