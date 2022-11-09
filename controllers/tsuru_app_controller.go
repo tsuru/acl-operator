@@ -156,10 +156,12 @@ func convertACLAPIRulesToOperatorRules(rules []aclapi.Rule) ([]v1alpha1.ACLSpecD
 		if rule.Destination.TsuruApp != nil {
 			if rule.Destination.TsuruApp.AppName != "" {
 				result = append(result, v1alpha1.ACLSpecDestination{
+					RuleID:   rule.RuleID,
 					TsuruApp: rule.Destination.TsuruApp.AppName,
 				})
 			} else if rule.Destination.TsuruApp.PoolName != "" {
 				result = append(result, v1alpha1.ACLSpecDestination{
+					RuleID:       rule.RuleID,
 					TsuruAppPool: rule.Destination.TsuruApp.PoolName,
 				})
 			}
@@ -168,6 +170,7 @@ func convertACLAPIRulesToOperatorRules(rules []aclapi.Rule) ([]v1alpha1.ACLSpecD
 			errors = append(errors, errs...)
 			if result != nil {
 				result = append(result, v1alpha1.ACLSpecDestination{
+					RuleID:      rule.RuleID,
 					ExternalDNS: externalDNS,
 				})
 			}
@@ -177,6 +180,7 @@ func convertACLAPIRulesToOperatorRules(rules []aclapi.Rule) ([]v1alpha1.ACLSpecD
 
 			if result != nil {
 				result = append(result, v1alpha1.ACLSpecDestination{
+					RuleID:     rule.RuleID,
 					ExternalIP: externalIP,
 				})
 			}
@@ -187,6 +191,7 @@ func convertACLAPIRulesToOperatorRules(rules []aclapi.Rule) ([]v1alpha1.ACLSpecD
 				continue
 			}
 			result = append(result, v1alpha1.ACLSpecDestination{
+				RuleID:        rule.RuleID,
 				RpaasInstance: rpaasInstance,
 			})
 		} else if rule.Destination.KubernetesService != nil {

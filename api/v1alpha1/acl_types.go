@@ -37,6 +37,8 @@ type ACLSpecRpaasInstance struct {
 }
 
 type ACLSpecDestination struct {
+	RuleID string `json:"ruleID,omitempty"`
+
 	TsuruApp      string                `json:"tsuruApp,omitempty"`
 	TsuruAppPool  string                `json:"tsuruAppPool,omitempty"`
 	RpaasInstance *ACLSpecRpaasInstance `json:"rpaasInstance,omitempty"`

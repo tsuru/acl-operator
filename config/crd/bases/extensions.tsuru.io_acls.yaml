@@ -90,6 +90,8 @@ spec:
                       - instance
                       - serviceName
                       type: object
+                    ruleID:
+                      type: string
                     tsuruApp:
                       type: string
                     tsuruAppPool:
