@@ -81,6 +81,8 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	oldStatus := acl.Status.DeepCopy()
+
 	networkPolicy := &netv1.NetworkPolicy{}
 	networkPolicyName := acl.Status.NetworkPolicy
 	if networkPolicyName == "" {
@@ -196,6 +198,10 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	if !reflect.DeepEqual(oldStatus, acl.Status) {
+		statusNeedsUpdate = true
+	}
+
 	if !reflect.DeepEqual(networkPolicy.Spec.Egress, newEgressRules) {
 		networkPolicy.Spec.Egress = newEgressRules
 		networkPolicyHasChanges = true
@@ -224,8 +230,6 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		l.Info("NetworkPolicy object has been updated")
 
 		acl.Status.NetworkPolicy = networkPolicy.Name
-		acl.Status.Ready = true
-		acl.Status.Reason = ""
 		statusNeedsUpdate = true
 	}
 
