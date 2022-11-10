@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -69,6 +70,19 @@ type ACLStatus struct {
 	Ready         bool     `json:"ready"`
 	Reason        string   `json:"reason,omitempty"`
 	WarningErrors []string `json:"warningErrors,omitempty"`
+
+	Stale      []ACLStatusStale     `json:"stale,omitempty"`
+	RuleErrors []ACLStatusRuleError `json:"errors,omitempty"`
+}
+
+type ACLStatusStale struct {
+	RuleID string                          `json:"ruleID"`
+	Rules  []netv1.NetworkPolicyEgressRule `json:"rules"`
+}
+
+type ACLStatusRuleError struct {
+	RuleID string `json:"ruleID"`
+	Error  string `json:"error"`
 }
 
 //+kubebuilder:object:root=true

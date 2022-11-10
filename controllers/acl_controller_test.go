@@ -38,6 +38,7 @@ func (suite *ControllerSuite) TestACLReconcilerSimpleReconcile() {
 			},
 			Destinations: []v1alpha1.ACLSpecDestination{
 				{
+					RuleID: "external-ip-1",
 					ExternalIP: &v1alpha1.ACLSpecExternalIP{
 						IP: "100.100.100.100/32",
 						Ports: v1alpha1.ACLSpecProtoPorts{
@@ -49,6 +50,7 @@ func (suite *ControllerSuite) TestACLReconcilerSimpleReconcile() {
 					},
 				},
 				{
+					RuleID: "external-ip-2",
 					ExternalIP: &v1alpha1.ACLSpecExternalIP{
 						IP: "1.1.1.1/32",
 					},
@@ -72,9 +74,51 @@ func (suite *ControllerSuite) TestACLReconcilerSimpleReconcile() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
+	tcp := corev1.ProtocolTCP
+
 	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(acl), existingACL)
 	suite.Require().NoError(err)
 	suite.Assert().True(existingACL.Status.Ready)
+	suite.Assert().Equal("", existingACL.Status.Reason)
+	suite.Assert().Equal([]v1alpha1.ACLStatusStale{
+		{
+			RuleID: "external-ip-1",
+			Rules: []netv1.NetworkPolicyEgressRule{
+				{
+					Ports: []netv1.NetworkPolicyPort{
+						{
+							Port: &intstr.IntOrString{
+								IntVal: 80,
+							},
+							Protocol: &tcp,
+						},
+					},
+					To: []netv1.NetworkPolicyPeer{
+						{
+							IPBlock: &netv1.IPBlock{
+								CIDR: "100.100.100.100/32",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			RuleID: "external-ip-2",
+			Rules: []netv1.NetworkPolicyEgressRule{
+				{
+					To: []netv1.NetworkPolicyPeer{
+						{
+							IPBlock: &netv1.IPBlock{
+								CIDR: "1.1.1.1/32",
+							},
+						},
+					},
+				},
+			},
+		},
+	}, existingACL.Status.Stale)
+	suite.Assert().Len(existingACL.Status.RuleErrors, 0)
 
 	existingNP := &netv1.NetworkPolicy{}
 	err = reconciler.Client.Get(ctx, client.ObjectKey{
@@ -85,7 +129,6 @@ func (suite *ControllerSuite) TestACLReconcilerSimpleReconcile() {
 	suite.Assert().Equal(map[string]string{
 		"tsuru.io/app-name": "myapp",
 	}, existingNP.Spec.PodSelector.MatchLabels)
-	tcp := corev1.ProtocolTCP
 	suite.Assert().Equal(netv1.NetworkPolicyEgressRule{
 		Ports: []netv1.NetworkPolicyPort{
 			{
@@ -113,6 +156,108 @@ func (suite *ControllerSuite) TestACLReconcilerSimpleReconcile() {
 			},
 		},
 	}, existingNP.Spec.Egress[1])
+}
+
+func (suite *ControllerSuite) TestACLReconcilerStaleReconcile() {
+	ctx := context.Background()
+	acl := &v1alpha1.ACL{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "myapp",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ACLSpec{
+			Source: v1alpha1.ACLSpecSource{
+				TsuruApp: "myapp",
+			},
+			Destinations: []v1alpha1.ACLSpecDestination{
+				{
+					RuleID: "external-ip-2",
+					ExternalDNS: &v1alpha1.ACLSpecExternalDNS{
+						Name: "timeout.com.br",
+					},
+				},
+			},
+		},
+		Status: v1alpha1.ACLStatus{
+			Stale: []v1alpha1.ACLStatusStale{
+				{
+					RuleID: "external-ip-2",
+					Rules: []netv1.NetworkPolicyEgressRule{
+						{
+							To: []netv1.NetworkPolicyPeer{
+								{
+									IPBlock: &netv1.IPBlock{
+										CIDR: "200.200.200.200/32",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	reconciler := &ACLReconciler{
+		Client:   fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(acl).Build(),
+		Scheme:   scheme.Scheme,
+		Resolver: &fakeResolver{},
+		TsuruAPI: &fakeTsuruAPI{},
+	}
+	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "myapp",
+			Namespace: "default",
+		},
+	})
+	suite.Require().NoError(err)
+
+	existingACL := &v1alpha1.ACL{}
+
+	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(acl), existingACL)
+	suite.Require().NoError(err)
+	suite.Assert().True(existingACL.Status.Ready)
+	suite.Assert().Equal("", existingACL.Status.Reason)
+	suite.Assert().Equal([]v1alpha1.ACLStatusStale{
+		{
+			RuleID: "external-ip-2",
+			Rules: []netv1.NetworkPolicyEgressRule{
+				{
+					To: []netv1.NetworkPolicyPeer{
+						{
+							IPBlock: &netv1.IPBlock{
+								CIDR: "200.200.200.200/32",
+							},
+						},
+					},
+				},
+			},
+		},
+	}, existingACL.Status.Stale)
+	suite.Require().Len(existingACL.Status.RuleErrors, 1)
+	suite.Assert().Equal(v1alpha1.ACLStatusRuleError{
+		RuleID: "external-ip-2",
+		Error:  "timeout for host",
+	}, existingACL.Status.RuleErrors[0])
+
+	existingNP := &netv1.NetworkPolicy{}
+	err = reconciler.Client.Get(ctx, client.ObjectKey{
+		Namespace: existingACL.Namespace,
+		Name:      existingACL.Status.NetworkPolicy,
+	}, existingNP)
+	suite.Require().NoError(err)
+	suite.Assert().Equal(map[string]string{
+		"tsuru.io/app-name": "myapp",
+	}, existingNP.Spec.PodSelector.MatchLabels)
+	suite.Assert().Equal(netv1.NetworkPolicyEgressRule{
+		To: []netv1.NetworkPolicyPeer{
+			{
+				IPBlock: &netv1.IPBlock{
+					CIDR: "200.200.200.200/32",
+				},
+			},
+		},
+	}, existingNP.Spec.Egress[0])
 }
 
 func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {

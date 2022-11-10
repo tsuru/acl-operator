@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -127,17 +128,61 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	newEgressRules := []netv1.NetworkPolicyEgressRule{}
+
+	// TODO: think how to remove unused rules from stale
+	ruleIDErrors := map[string]string{}
+	ruleIDDestinations := map[string][]netv1.NetworkPolicyEgressRule{}
+
+	mapStaleEgress := map[string][]netv1.NetworkPolicyEgressRule{}
+	for _, stale := range acl.Status.Stale {
+		mapStaleEgress[stale.RuleID] = stale.Rules
+	}
+
 	for _, destination := range acl.Spec.Destinations {
 		egressRules, err := r.egressRulesForDestination(ctx, destination)
 		// TODO: think about inconsistences, or temporarrly inconsistences
-		if err != nil {
+		if err != nil && destination.RuleID == "" {
+			// without ruleID its not possible to do a stale
 			destinationJSON, _ := json.Marshal(destination)
 			l.Error(err, "could not generate egress rule for destination", "destination", string(destinationJSON))
 			err = r.setUnreadyStatus(ctx, acl, "could not generate egress rule for destination "+string(destinationJSON)+", err: "+err.Error())
 			return ctrl.Result{}, err
+		} else if err != nil {
+			ruleIDErrors[destination.RuleID] = err.Error()
+			egressRules = mapStaleEgress[destination.RuleID] // try to use stale
+			ruleIDDestinations[destination.RuleID] = copyEgressRules(egressRules)
+		} else if err == nil && destination.RuleID != "" {
+			ruleIDDestinations[destination.RuleID] = copyEgressRules(egressRules)
 		}
+
 		newEgressRules = append(newEgressRules, egressRules...)
 	}
+
+	acl.Status.Stale = make([]v1alpha1.ACLStatusStale, 0, len(ruleIDDestinations))
+	acl.Status.RuleErrors = make([]v1alpha1.ACLStatusRuleError, 0, len(ruleIDErrors))
+
+	for ruleID, rules := range ruleIDDestinations {
+		acl.Status.Stale = append(acl.Status.Stale, v1alpha1.ACLStatusStale{
+			RuleID: ruleID,
+			Rules:  rules,
+		})
+	}
+	sort.Slice(acl.Status.Stale, func(i, j int) bool {
+		return acl.Status.Stale[i].RuleID < acl.Status.Stale[j].RuleID
+	})
+
+	for ruleID, errStr := range ruleIDErrors {
+		acl.Status.RuleErrors = append(acl.Status.RuleErrors, v1alpha1.ACLStatusRuleError{
+			RuleID: ruleID,
+			Error:  errStr,
+		})
+	}
+	sort.Slice(acl.Status.RuleErrors, func(i, j int) bool {
+		return acl.Status.RuleErrors[i].RuleID < acl.Status.RuleErrors[j].RuleID
+	})
+
+	acl.Status.Ready = len(acl.Status.RuleErrors) == 0
+	acl.Status.Reason = ""
 
 	err = r.fillPodSelectorByCIDR(ctx, newEgressRules)
 	if err != nil {
@@ -715,4 +760,14 @@ func sha256String(str string) string {
 	hash := sha256.New()
 	fmt.Fprint(hash, str)
 	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func copyEgressRules(in []netv1.NetworkPolicyEgressRule) []netv1.NetworkPolicyEgressRule {
+	out := make([]netv1.NetworkPolicyEgressRule, len(in))
+
+	for i := range in {
+		out[i] = *in[i].DeepCopy()
+	}
+
+	return out
 }
