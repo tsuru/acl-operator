@@ -186,7 +186,7 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	acl.Status.Ready = len(acl.Status.RuleErrors) == 0
 	acl.Status.Reason = ""
 
-	err = r.fillPodSelectorByCIDR(ctx, newEgressRules)
+	newEgressRules, err = r.fillPodSelectorByCIDR(ctx, newEgressRules)
 	if err != nil {
 		l.Error(err, "could not generate egress rule based on kubernetes selector", "destination")
 		err = r.setUnreadyStatus(ctx, acl, "could not generate egress rule based on kubernetes selector, err: "+err.Error())
@@ -688,10 +688,13 @@ func (r *ACLReconciler) getServiceCache() *serviceCache {
 	return s
 }
 
-func (r *ACLReconciler) fillPodSelectorByCIDR(ctx context.Context, rules []netv1.NetworkPolicyEgressRule) error {
+func (r *ACLReconciler) fillPodSelectorByCIDR(ctx context.Context, rules []netv1.NetworkPolicyEgressRule) ([]netv1.NetworkPolicyEgressRule, error) {
 	serviceCache := r.getServiceCache()
-	for i, egressRule := range rules {
-		newDestinations := []netv1.NetworkPolicyPeer{}
+
+	result := make([]netv1.NetworkPolicyEgressRule, 0, len(rules))
+
+	for _, egressRule := range rules {
+		result = append(result, egressRule)
 
 	toLoop:
 		for _, to := range egressRule.To {
@@ -701,31 +704,33 @@ func (r *ACLReconciler) fillPodSelectorByCIDR(ctx context.Context, rules []netv1
 
 					svc, err := serviceCache.GetByIP(ctx, ip)
 					if err != nil {
-						return err
+						return nil, err
 					}
 
 					if svc == nil {
 						continue toLoop
 					}
 
-					newDestinations = append(newDestinations, netv1.NetworkPolicyPeer{
-						PodSelector: &metav1.LabelSelector{
-							MatchLabels: svc.Spec.Selector,
-						},
-						NamespaceSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"name": svc.Namespace, // we have a common practice to add name of namespace as a label
+					result = append(result, netv1.NetworkPolicyEgressRule{
+						To: []netv1.NetworkPolicyPeer{
+							{
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: svc.Spec.Selector,
+								},
+								NamespaceSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"name": svc.Namespace, // we have a common practice to add name of namespace as a label
+									},
+								},
 							},
 						},
 					})
 				}
 			}
 		}
-
-		rules[i].To = append(rules[i].To, newDestinations...)
 	}
 
-	return nil
+	return result, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -384,11 +384,12 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 	suite.Assert().Equal(map[string]string{
 		"tsuru.io/app-name": "myapp",
 	}, existingNP.Spec.PodSelector.MatchLabels)
-	suite.Assert().Len(existingNP.Spec.Egress, 3)
+	suite.Assert().Len(existingNP.Spec.Egress, 4)
 
 	suite.Assert().Len(existingNP.Spec.Egress[0].To, 1)
-	suite.Assert().Len(existingNP.Spec.Egress[1].To, 2)
+	suite.Assert().Len(existingNP.Spec.Egress[1].To, 1)
 	suite.Assert().Len(existingNP.Spec.Egress[2].To, 1)
+	suite.Assert().Len(existingNP.Spec.Egress[3].To, 1)
 
 	suite.Assert().Equal(netv1.NetworkPolicyPeer{
 		PodSelector: &metav1.LabelSelector{
@@ -402,6 +403,8 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 			CIDR: "1.1.1.1/32",
 		},
 	}, existingNP.Spec.Egress[1].To[0])
+	// Ports must be nil when use podSelector, some services has port translation and does not match
+	suite.Assert().Nil(existingNP.Spec.Egress[2].Ports)
 	suite.Assert().Equal(netv1.NetworkPolicyPeer{
 		PodSelector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{
@@ -413,13 +416,13 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 				"name": "default",
 			},
 		},
-	}, existingNP.Spec.Egress[1].To[1])
+	}, existingNP.Spec.Egress[2].To[0])
 
 	suite.Assert().Equal(netv1.NetworkPolicyPeer{
 		IPBlock: &netv1.IPBlock{
 			CIDR: "2.2.2.2/32",
 		},
-	}, existingNP.Spec.Egress[2].To[0])
+	}, existingNP.Spec.Egress[3].To[0])
 }
 
 func (suite *ControllerSuite) TestACLReconcilerDestinationRPaaSReconcile() {
