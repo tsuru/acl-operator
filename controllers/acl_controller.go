@@ -211,6 +211,10 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		err = r.Client.Create(ctx, networkPolicy)
 		if err != nil {
 			l.Error(err, "could not create NetworkPolicy object")
+			statusErr := r.setUnreadyStatus(ctx, acl, "could not create NetworkPolicy object, err: "+err.Error())
+			if statusErr != nil {
+				l.Error(err, "could not update status")
+			}
 			return ctrl.Result{}, err
 		}
 		l.Info("NetworkPolicy object has been created")
@@ -224,6 +228,10 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		err = r.Client.Update(ctx, networkPolicy)
 		if err != nil {
 			l.Error(err, "could not update NetworkPolicy object")
+			statusErr := r.setUnreadyStatus(ctx, acl, "could not update NetworkPolicy object, err: "+err.Error())
+			if statusErr != nil {
+				l.Error(err, "could not update status")
+			}
 			return ctrl.Result{}, err
 		}
 
