@@ -24,6 +24,7 @@ type appACLKey struct {
 }
 
 func (a *ACLGarbageCollector) Run(ctx context.Context) {
+	time.Sleep(time.Second * 30) // wait for sync
 	for {
 		err := a.Loop(ctx)
 		if err != nil {
@@ -67,7 +68,6 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 		}
 
 		rpaaInstances[key] = struct{}{}
-
 	}
 
 	allACLSs, err := a.allACLs(ctx)
