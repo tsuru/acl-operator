@@ -41,7 +41,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	appACLs := map[appACLKey]struct{}{}
 	dnsEntries := map[string]struct{}{}
 	tsuruApps := map[string]struct{}{}
-	rpaaInstances := map[v1alpha1.ACLSpecRpaasInstance]struct{}{}
+	rpaaInstances := map[v1alpha1.ACLSpecRpaasInstance]string{}
 
 	allDNSEntries, err := a.allDNSEntries(ctx)
 	if err != nil {
@@ -66,14 +66,14 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	rpaaInstances = make(map[v1alpha1.ACLSpecRpaasInstance]struct{}, len(allRPaaSInstancesAddresses))
+	rpaaInstances = make(map[v1alpha1.ACLSpecRpaasInstance]string, len(allRPaaSInstancesAddresses))
 	for _, rpaaInstanceAddress := range allRPaaSInstancesAddresses {
 		key := v1alpha1.ACLSpecRpaasInstance{
 			ServiceName: rpaaInstanceAddress.Spec.ServiceName,
 			Instance:    rpaaInstanceAddress.Spec.Instance,
 		}
 
-		rpaaInstances[key] = struct{}{}
+		rpaaInstances[key] = rpaaInstanceAddress.ObjectMeta.Name
 	}
 
 	allACLSs, err := a.allACLs(ctx)
@@ -131,8 +131,8 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 			fmt.Fprintf(a.DryRunOutput, "tsuruApp is marked to delete: %q\n", tsuruApp)
 		}
 
-		for rpaasInstance := range rpaaInstances {
-			fmt.Fprintln(a.DryRunOutput, "rpaaInstance is marked to delete", rpaasInstance.ServiceName, "/", rpaasInstance.Instance)
+		for _, rpaasInstanceName := range rpaaInstances {
+			fmt.Fprintln(a.DryRunOutput, "rpaaInstance is marked to delete", rpaasInstanceName)
 		}
 
 		for appACL := range appACLs {
@@ -163,14 +163,14 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 		}
 	}
 
-	for rpaasInstance := range rpaaInstances {
+	for _, rpaasInstanceName := range rpaaInstances {
 		err = a.Client.Delete(ctx, &v1alpha1.RpaasInstanceAddress{
 			ObjectMeta: v1.ObjectMeta{
-				Name: validResourceName(rpaasInstance.ServiceName + "-" + rpaasInstance.Instance),
+				Name: rpaasInstanceName,
 			},
 		})
 		if err != nil {
-			a.Logger.Error(err, "failed to remove rpaasInstanceAddress", "serviceName", rpaasInstance.ServiceName, "instance", rpaasInstance.Instance)
+			a.Logger.Error(err, "failed to remove rpaasInstanceAddress", "rpaasInstanceAddress", rpaasInstanceName)
 		}
 	}
 

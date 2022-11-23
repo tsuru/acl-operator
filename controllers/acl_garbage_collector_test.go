@@ -308,7 +308,7 @@ func TestLoopRPaaSAddressDryRun(t *testing.T) {
 
 	rpaasInstanceAddress2 := &v1alpha1.RpaasInstanceAddress{
 		ObjectMeta: v1.ObjectMeta{
-			Name: "to-delete",
+			Name: "rpaasv2-to-delete",
 		},
 		Spec: v1alpha1.RpaasInstanceAddressSpec{
 			ServiceName: "rpaasv2",
@@ -329,7 +329,7 @@ func TestLoopRPaaSAddressDryRun(t *testing.T) {
 	require.NoError(t, err)
 
 	outputString := output.String()
-	assert.Contains(t, outputString, "rpaaInstance is marked to delete rpaasv2 / to-delete")
+	assert.Contains(t, outputString, "rpaaInstance is marked to delete rpaasv2-to-delete")
 }
 
 func TestLoopExternalDNS(t *testing.T) {
