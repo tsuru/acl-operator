@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/tsuru/acl-operator/api/v1alpha1"
 	tsuruv1 "github.com/tsuru/tsuru/provision/kubernetes/pkg/apis/tsuru/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +17,7 @@ type ACLGarbageCollector struct {
 	client.Client
 	DryRun       bool
 	DryRunOutput io.Writer
+	Logger       logr.Logger
 }
 
 type appACLKey struct {
@@ -142,7 +144,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 			},
 		})
 		if err != nil {
-			fmt.Println("failed to remove dnsEntry", err.Error())
+			a.Logger.Error(err, "failed to remove dnsEntry", "dnsEntry", dnsEntry)
 		}
 	}
 
@@ -153,7 +155,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 			},
 		})
 		if err != nil {
-			fmt.Println("failed to remove tsuruAppAddress", err.Error())
+			a.Logger.Error(err, "failed to remove tsuruAppAddress", "tsuruApp", tsuruApp)
 		}
 	}
 
@@ -164,7 +166,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 			},
 		})
 		if err != nil {
-			fmt.Println("failed to remove rpaasInstanceAddress", err.Error())
+			a.Logger.Error(err, "failed to remove rpaasInstanceAddress", "serviceName", rpaasInstance.ServiceName, "instance", rpaasInstance.Instance)
 		}
 	}
 
@@ -176,7 +178,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 			},
 		})
 		if err != nil {
-			fmt.Println("failed to remove acl", err.Error())
+			a.Logger.Error(err, "failed to remove acl", "namespace", appACL.Namespace, "name", appACL.App)
 		}
 	}
 

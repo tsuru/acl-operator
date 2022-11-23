@@ -207,6 +207,7 @@ func main() {
 		Client:       mgr.GetClient(),
 		DryRunOutput: os.Stdout,
 		DryRun:       gcDryRun,
+		Logger:       ctrl.Log.WithName("acl-gc"),
 	}
 	go gc.Run(context.Background())
 
