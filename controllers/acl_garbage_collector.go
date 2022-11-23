@@ -47,6 +47,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	dnsEntries = make(map[string]struct{}, len(allDNSEntries))
 	for _, dnsEntry := range allDNSEntries {
 		dnsEntries[dnsEntry.Spec.Host] = struct{}{}
 	}
@@ -55,6 +56,8 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	tsuruApps = make(map[string]struct{}, len(allTsuruAppAddress))
+	appACLs = make(map[appACLKey]struct{}, len(allTsuruAppAddress)) // fair aproximation
 	for _, tsuruAppAddress := range allTsuruAppAddress {
 		tsuruApps[tsuruAppAddress.Spec.Name] = struct{}{}
 	}
@@ -63,6 +66,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	rpaaInstances = make(map[v1alpha1.ACLSpecRpaasInstance]struct{}, len(allRPaaSInstancesAddresses))
 	for _, rpaaInstanceAddress := range allRPaaSInstancesAddresses {
 		key := v1alpha1.ACLSpecRpaasInstance{
 			ServiceName: rpaaInstanceAddress.Spec.ServiceName,
