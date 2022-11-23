@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -54,6 +55,8 @@ func main() {
 	var tsuruAPIAddr string
 	var tsuruAPIToken string
 
+	var gcDryRun bool
+
 	flag.StringVar(&aclAPIAddr, "acl-api-address", "", "The address of ACL API [required]")
 	flag.StringVar(&aclAPIUser, "acl-api-user", "", "The user of ACL API [required]")
 	flag.StringVar(&aclAPIPassword, "acl-api-password", "", "The password of ACL API [required]")
@@ -66,6 +69,9 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+
+	flag.BoolVar(&gcDryRun, "gc-dry-run", false,
+		"Enable Dry run for garbage collector")
 
 	opts := zap.Options{
 		Development:     true,
@@ -110,6 +116,10 @@ func main() {
 	if aclAPIAddr == "" || aclAPIUser == "" || aclAPIPassword == "" {
 		logger.Info("TsuruAppReconciler is disabled due a missing acl api settings")
 		tsuruAppReconciler = false
+	}
+
+	if v := os.Getenv("GC_DRY_RUN"); v != "" {
+		gcDryRun = true
 	}
 
 	tsuruAPI := tsuruapi.New(tsuruAPIAddr, tsuruAPIToken)
@@ -192,6 +202,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RpaasInstanceAddress")
 		os.Exit(1)
 	}
+
+	gc := &controllers.ACLGarbageCollector{
+		Client:       mgr.GetClient(),
+		DryRunOutput: os.Stdout,
+		DryRun:       gcDryRun,
+	}
+	go gc.Run(context.Background())
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
