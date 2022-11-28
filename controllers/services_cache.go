@@ -45,6 +45,16 @@ func (s *serviceCache) fillCache(ctx context.Context) (*mapServiceCache, error) 
 
 	cache := mapServiceCache{}
 
+	// store also cluster IPs
+	for i, service := range allServices.Items {
+		if service.Spec.ClusterIP != "" {
+			cache[service.Spec.ClusterIP] = &allServices.Items[i]
+		}
+		for _, clusterIP := range service.Spec.ClusterIPs {
+			cache[clusterIP] = &allServices.Items[i]
+		}
+	}
+
 	for i, service := range allServices.Items {
 		if service.Spec.Type != corev1.ServiceTypeLoadBalancer {
 			continue
