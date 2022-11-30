@@ -118,11 +118,12 @@ func (r *TsuruAppAddressReconciler) FillStatus(ctx context.Context, appAddress *
 	}
 	sort.Strings(resolvedIPs)
 
+	appAddress.Status.Pool = appInfo.Pool
+
 	if !appAddress.Status.Ready || !reflect.DeepEqual(resolvedIPs, appAddress.Status.IPs) {
 		appAddress.Status.Ready = true
 		appAddress.Status.Reason = ""
 		appAddress.Status.IPs = resolvedIPs
-		appAddress.Status.Pool = appInfo.Pool
 		appAddress.Status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
 

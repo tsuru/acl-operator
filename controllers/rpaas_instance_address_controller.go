@@ -116,10 +116,11 @@ func (r *RpaasInstanceAddressReconciler) FillStatus(ctx context.Context, rpaasIn
 		return nil
 	}
 
+	rpaasInstanceAddress.Status.Pool = serviceInfo.Pool
+
 	if !rpaasInstanceAddress.Status.Ready || !reflect.DeepEqual(resolvedIPs, rpaasInstanceAddress.Status.IPs) {
 		rpaasInstanceAddress.Status.Ready = true
 		rpaasInstanceAddress.Status.Reason = ""
-		rpaasInstanceAddress.Status.Pool = serviceInfo.Pool
 		rpaasInstanceAddress.Status.IPs = resolvedIPs
 		rpaasInstanceAddress.Status.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
