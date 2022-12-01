@@ -112,7 +112,7 @@ func (r *TsuruAppAddressReconciler) FillStatus(ctx context.Context, appAddress *
 		}
 	}
 
-	resolvedIPs := []string{}
+	var resolvedIPs []string
 	for ip := range foundIPs {
 		resolvedIPs = append(resolvedIPs, ip)
 	}
