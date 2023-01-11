@@ -93,6 +93,12 @@ func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			l.Error(err, "could not update status for ACLDNSEntry object")
 			return ctrl.Result{}, err
 		}
+
+		err = r.triggerACLsChanges(ctx, dnsEntry.Spec.Host)
+		if err != nil {
+			l.Error(err, "could not trigger ACLDNSEntry changes")
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -123,6 +129,18 @@ statusLoop:
 		missingIpAddrs = append(missingIpAddrs, foundIP)
 	}
 
+additionalIPsLoop:
+	for _, additionalIP := range dnsEntry.Spec.AdditionalIPs {
+		for i, existingIP := range dnsEntry.Status.IPs {
+			if existingIP.Address == additionalIP {
+				dnsEntry.Status.IPs[i].ValidUntil = validUntil.Format(dayFormat)
+				continue additionalIPsLoop
+			}
+		}
+
+		missingIpAddrs = append(missingIpAddrs, net.IPAddr{IP: net.ParseIP(additionalIP)})
+	}
+
 	for _, foundIP := range missingIpAddrs {
 		dnsEntry.Status.IPs = append(dnsEntry.Status.IPs, extensionstsuruiov1alpha1.ACLDNSEntryStatusIP{
 			Address:    foundIP.IP.String(),
@@ -148,6 +166,70 @@ statusLoop:
 	dnsEntry.Status.Reason = ""
 
 	return nil
+}
+
+func (r *ACLDNSEntryReconciler) triggerACLsChanges(ctx context.Context, host string) error {
+	l := log.FromContext(ctx)
+
+	allACLs, err := r.allACLs(ctx)
+	if err != nil {
+		return err
+	}
+
+aclLoop:
+	for _, acl := range allACLs {
+		for _, destination := range acl.Spec.Destinations {
+			if destination.ExternalDNS != nil && destination.ExternalDNS.Name == host {
+
+				err = r.triggerACLChange(ctx, &acl)
+				if err != nil {
+					l.Error(err, "could not trigger dns change")
+				}
+				continue aclLoop
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (a *ACLDNSEntryReconciler) triggerACLChange(ctx context.Context, acl *v1alpha1.ACL) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	if acl.Annotations == nil {
+		acl.Annotations = make(map[string]string)
+	}
+
+	acl.Annotations["acldnsentries.extensions.tsuru.io/triggered-at"] = now
+
+	// TODO: Use patch operation to optimize
+	return a.Client.Update(ctx, acl)
+}
+
+func (a *ACLDNSEntryReconciler) allACLs(ctx context.Context) ([]v1alpha1.ACL, error) {
+	result := []v1alpha1.ACL{}
+
+	continueToken := ""
+
+	for {
+		allACLSs := &v1alpha1.ACLList{}
+
+		err := a.Client.List(ctx, allACLSs, &client.ListOptions{
+			Continue: continueToken,
+		})
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, allACLSs.Items...)
+
+		if allACLSs.Continue == "" {
+			break
+		}
+
+		continueToken = allACLSs.Continue
+	}
+
+	return result, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
