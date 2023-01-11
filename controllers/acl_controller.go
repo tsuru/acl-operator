@@ -31,6 +31,7 @@ import (
 	"github.com/pkg/errors"
 	tsuruErrors "github.com/tsuru/tsuru/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -38,7 +39,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 	"github.com/tsuru/acl-operator/clients/tsuruapi"
@@ -54,6 +58,12 @@ var (
 	desiredPolicyType = []netv1.PolicyType{
 		netv1.PolicyTypeEgress,
 	}
+)
+
+const (
+	externalDNSIndex   = "external-dns-name"
+	rpaasInstanceIndex = "rpaas-instance-name"
+	tsuruAppNameIndex  = "tsuru-app-name"
 )
 
 // ACLReconciler reconciles a ACL object
@@ -410,13 +420,19 @@ func (r *ACLReconciler) egressRulesForExternalDNS(ctx context.Context, externalD
 
 	to := []netv1.NetworkPolicyPeer{}
 	for _, ip := range existingDNSEntry.Status.IPs {
+		cidr := ipToCIDR(ip.Address)
+		if cidr == "" {
+			continue
+		}
 
-		var cidr string
-		if strings.Contains(ip.Address, ":") {
-			cidr = ip.Address + "/128"
-		} else if strings.Contains(ip.Address, ".") {
-			cidr = ip.Address + "/32"
-		} else {
+		to = append(to, netv1.NetworkPolicyPeer{IPBlock: &netv1.IPBlock{
+			CIDR: cidr,
+		}})
+	}
+
+	for _, ip := range existingDNSEntry.Spec.AdditionalIPs {
+		cidr := ipToCIDR(ip)
+		if cidr == "" {
 			continue
 		}
 
@@ -433,6 +449,17 @@ func (r *ACLReconciler) egressRulesForExternalDNS(ctx context.Context, externalD
 	}
 
 	return egress, nil
+}
+
+func ipToCIDR(address string) string {
+	if strings.Contains(address, ":") {
+		return address + "/128"
+	}
+	if strings.Contains(address, ".") {
+		return address + "/32"
+	}
+
+	return ""
 }
 
 func (r *ACLReconciler) egressRulesForExternalIP(ctx context.Context, externalIP *v1alpha1.ACLSpecExternalIP) ([]netv1.NetworkPolicyEgressRule, error) {
@@ -743,11 +770,157 @@ func (r *ACLReconciler) fillPodSelectorByCIDR(ctx context.Context, rules []netv1
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	ctrl, err := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ACL{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 4, RecoverPanic: true}).
 		Owns(&netv1.NetworkPolicy{}).
-		Complete(r)
+		Build(r)
+
+	if err != nil {
+		return err
+	}
+
+	err = r.setupIndexes(mgr)
+	if err != nil {
+		return err
+	}
+
+	err = r.setupWatchers(ctrl)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *ACLReconciler) setupIndexes(mgr ctrl.Manager) error {
+	err := mgr.GetFieldIndexer().IndexField(context.Background(), &v1alpha1.ACL{}, externalDNSIndex, func(o client.Object) []string {
+		acl, ok := o.(*v1alpha1.ACL)
+		if !ok {
+			return nil
+		}
+
+		keys := []string{}
+		for _, destination := range acl.Spec.Destinations {
+			if destination.ExternalDNS != nil {
+				keys = append(keys, destination.ExternalDNS.Name)
+			}
+		}
+
+		return keys
+	})
+	if err != nil {
+		return err
+	}
+
+	err = mgr.GetFieldIndexer().IndexField(context.Background(), &v1alpha1.ACL{}, rpaasInstanceIndex, func(o client.Object) []string {
+		acl, ok := o.(*v1alpha1.ACL)
+		if !ok {
+			return nil
+		}
+
+		keys := []string{}
+		for _, destination := range acl.Spec.Destinations {
+			if destination.RpaasInstance != nil {
+				keys = append(keys, destination.RpaasInstance.ServiceName+"/"+destination.RpaasInstance.Instance)
+			}
+		}
+
+		return keys
+	})
+	if err != nil {
+		return err
+	}
+
+	err = mgr.GetFieldIndexer().IndexField(context.Background(), &v1alpha1.ACL{}, tsuruAppNameIndex, func(o client.Object) []string {
+		acl, ok := o.(*v1alpha1.ACL)
+		if !ok {
+			return nil
+		}
+
+		keys := []string{}
+		for _, destination := range acl.Spec.Destinations {
+			if destination.TsuruApp != "" {
+				keys = append(keys, destination.TsuruApp)
+			}
+		}
+
+		return keys
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *ACLReconciler) setupWatchers(ctrl controller.Controller) error {
+	err := ctrl.Watch(&source.Kind{Type: &v1alpha1.ACLDNSEntry{}},
+		handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
+			dnsEntry, ok := o.(*v1alpha1.ACLDNSEntry)
+			if !ok {
+				return nil
+			}
+
+			return r.reconcileRequestsForIndex(externalDNSIndex, dnsEntry.Spec.Host)
+		}),
+	)
+	if err != nil {
+		return err
+	}
+
+	err = ctrl.Watch(&source.Kind{Type: &v1alpha1.RpaasInstanceAddress{}},
+		handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
+			rpaasInstanceAddress, ok := o.(*v1alpha1.RpaasInstanceAddress)
+			if !ok {
+				return nil
+			}
+
+			value := rpaasInstanceAddress.Spec.ServiceName + "/" + rpaasInstanceAddress.Spec.Instance
+			return r.reconcileRequestsForIndex(rpaasInstanceIndex, value)
+
+		}),
+	)
+	if err != nil {
+		return err
+	}
+
+	err = ctrl.Watch(&source.Kind{Type: &v1alpha1.TsuruAppAddress{}},
+		handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
+			tsuruAppAddress, ok := o.(*v1alpha1.TsuruAppAddress)
+			if !ok {
+				return nil
+			}
+
+			return r.reconcileRequestsForIndex(tsuruAppNameIndex, tsuruAppAddress.Spec.Name)
+		}),
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *ACLReconciler) reconcileRequestsForIndex(index, value string) []reconcile.Request {
+	list := &v1alpha1.ACLList{}
+	err := r.Client.List(context.Background(), list, &client.ListOptions{FieldSelector: fields.SelectorFromSet(fields.Set{
+		index: value,
+	})})
+
+	if err != nil {
+		log.Log.Error(err, "could not list ACLs")
+		return nil
+	}
+
+	requests := make([]reconcile.Request, len(list.Items))
+
+	for i := range list.Items {
+		requests[i].Namespace = list.Items[i].Namespace
+		requests[i].Name = list.Items[i].Name
+	}
+
+	return requests
 }
 
 func isWildCard(name string) bool {

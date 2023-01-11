@@ -425,6 +425,93 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 	}, existingNP.Spec.Egress[3].To[0])
 }
 
+func (suite *ControllerSuite) TestACLReconcilerDestinationExternalDNSReconcile() {
+	ctx := context.Background()
+	acl := &v1alpha1.ACL{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "myapp",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ACLSpec{
+			Source: v1alpha1.ACLSpecSource{
+				TsuruApp: "myapp",
+			},
+			Destinations: []v1alpha1.ACLSpecDestination{
+				{
+					ExternalDNS: &v1alpha1.ACLSpecExternalDNS{
+						Name: "myapp.io",
+					},
+				},
+			},
+		},
+	}
+
+	dnsEntry1 := &v1alpha1.ACLDNSEntry{
+		ObjectMeta: v1.ObjectMeta{
+			Name: "myapp.io",
+		},
+		Spec: v1alpha1.ACLDNSEntrySpec{
+			Host:          "myapp.io",
+			AdditionalIPs: []string{"9.9.9.9"},
+		},
+		Status: v1alpha1.ACLDNSEntryStatus{
+			Ready: true,
+			IPs: []v1alpha1.ACLDNSEntryStatusIP{
+				{
+					Address:    "1.1.1.1",
+					ValidUntil: time.Now().Format(time.RFC3339),
+				},
+			},
+		},
+	}
+
+	reconciler := &ACLReconciler{
+		Client: fake.NewClientBuilder().
+			WithScheme(scheme.Scheme).
+			WithRuntimeObjects(acl, dnsEntry1).
+			Build(),
+		Scheme:   scheme.Scheme,
+		Resolver: &fakeResolver{},
+		TsuruAPI: &fakeTsuruAPI{},
+	}
+	_, err := reconciler.Reconcile(ctx, controllerruntime.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "myapp",
+			Namespace: "default",
+		},
+	})
+	suite.Require().NoError(err)
+
+	existingACL := &v1alpha1.ACL{}
+	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(acl), existingACL)
+	suite.Require().NoError(err)
+	suite.Assert().True(existingACL.Status.Ready)
+
+	existingNP := &netv1.NetworkPolicy{}
+	err = reconciler.Client.Get(ctx, client.ObjectKey{
+		Namespace: existingACL.Namespace,
+		Name:      existingACL.Status.NetworkPolicy,
+	}, existingNP)
+	suite.Require().NoError(err)
+	suite.Assert().Equal(map[string]string{
+		"tsuru.io/app-name": "myapp",
+	}, existingNP.Spec.PodSelector.MatchLabels)
+	suite.Assert().Len(existingNP.Spec.Egress, 1)
+
+	suite.Assert().Len(existingNP.Spec.Egress[0].To, 2)
+
+	suite.Assert().Equal(netv1.NetworkPolicyPeer{
+		IPBlock: &netv1.IPBlock{
+			CIDR: "1.1.1.1/32",
+		},
+	}, existingNP.Spec.Egress[0].To[0])
+	suite.Assert().Equal(netv1.NetworkPolicyPeer{
+		IPBlock: &netv1.IPBlock{
+			CIDR: "9.9.9.9/32",
+		},
+	}, existingNP.Spec.Egress[0].To[1])
+}
+
 func (suite *ControllerSuite) TestACLReconcilerDestinationRPaaSReconcile() {
 	ctx := context.Background()
 	acl := &v1alpha1.ACL{
