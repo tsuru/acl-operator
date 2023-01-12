@@ -26,7 +26,7 @@ import (
 // ACLDNSEntrySpec defines the desired state of ACLDNSEntry
 type ACLDNSEntrySpec struct {
 	Host          string   `json:"host"`
-	AdditionalIPs []string `json:"additionalIPs"`
+	AdditionalIPs []string `json:"additionalIPs,omitempty"`
 }
 
 // ACLDNSEntryStatus defines the observed state of ACLDNSEntry
