@@ -9,6 +9,7 @@ import (
 
 type Client interface {
 	AppRules(ctx context.Context, appName string) ([]Rule, error)
+	JobRules(ctx context.Context, jobName string) ([]Rule, error)
 }
 
 type Rule struct {
@@ -82,7 +83,17 @@ type client struct {
 }
 
 func (c *client) AppRules(ctx context.Context, appName string) ([]Rule, error) {
-	req, err := http.NewRequest(http.MethodGet, c.host+"/apps/"+appName+"/rules", nil)
+	url := c.host + "/apps/" + appName + "/rules"
+	return c.rules(ctx, url)
+}
+
+func (c *client) JobRules(ctx context.Context, jobName string) ([]Rule, error) {
+	url := c.host + "/jobs/" + jobName + "/rules"
+	return c.rules(ctx, url)
+}
+
+func (c *client) rules(ctx context.Context, url string) ([]Rule, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

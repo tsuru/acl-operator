@@ -17,7 +17,14 @@ import (
 type fakeACLAPI struct{}
 
 func (f *fakeACLAPI) AppRules(ctx context.Context, appName string) ([]aclapi.Rule, error) {
-	if appName == "myapp" {
+	return f.mockRules(ctx, appName)
+}
+func (f *fakeACLAPI) JobRules(ctx context.Context, jobName string) ([]aclapi.Rule, error) {
+	return f.mockRules(ctx, jobName)
+}
+
+func (f *fakeACLAPI) mockRules(ctx context.Context, resourceName string) ([]aclapi.Rule, error) {
+	if resourceName == "myapp" || resourceName == "myjob" {
 		return []aclapi.Rule{
 			{
 				Destination: aclapi.RuleType{
@@ -68,9 +75,9 @@ func (f *fakeACLAPI) AppRules(ctx context.Context, appName string) ([]aclapi.Rul
 				},
 			},
 		}, nil
-	} else if appName == "myapp-no-rules" {
+	} else if resourceName == "myapp-no-rules" || resourceName == "myjob-no-rules" {
 		return []aclapi.Rule{}, nil
-	} else if appName == "myapp-with-errors" {
+	} else if resourceName == "myapp-with-errors" || resourceName == "myjob-with-errors" {
 		return []aclapi.Rule{
 			{
 				Destination: aclapi.RuleType{
