@@ -112,10 +112,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	tsuruAppReconciler := true
+	hasACLAPI := true
 	if aclAPIAddr == "" || aclAPIUser == "" || aclAPIPassword == "" {
 		logger.Info("TsuruAppReconciler is disabled due a missing acl api settings")
-		tsuruAppReconciler = false
+		hasACLAPI = false
 	}
 
 	if v := os.Getenv("GC_DRY_RUN"); v != "" {
@@ -165,13 +165,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	if tsuruAppReconciler {
+	if hasACLAPI {
 		if err = (&controllers.TsuruAppReconciler{
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),
 			ACLAPI: aclapi.New(aclAPIAddr, aclAPIUser, aclAPIPassword),
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "TsuruAppReconciler")
+			os.Exit(1)
+		}
+
+		if err = (&controllers.TsuruCronJobReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+			ACLAPI: aclapi.New(aclAPIAddr, aclAPIUser, aclAPIPassword),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "TsuruCronJobReconciler")
 			os.Exit(1)
 		}
 	}

@@ -29,6 +29,7 @@ type ACLSpec struct {
 
 type ACLSpecSource struct {
 	TsuruApp      string                `json:"tsuruApp,omitempty"`
+	TsuruJob      string                `json:"tsuruJob,omitempty"`
 	RpaasInstance *ACLSpecRpaasInstance `json:"rpaasInstance,omitempty"`
 }
 

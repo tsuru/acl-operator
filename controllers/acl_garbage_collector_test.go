@@ -560,3 +560,33 @@ func TestLoopCleanAppACL(t *testing.T) {
 	}, existingACL)
 	assert.True(t, k8sErrors.IsNotFound(err))
 }
+
+func TestLoopCleanJobACL(t *testing.T) {
+	ctx := context.Background()
+
+	acl := &v1alpha1.ACL{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: "default",
+			Name:      tsuruJobACLPrefix + "my-job",
+		},
+		Spec: v1alpha1.ACLSpec{
+			Source: v1alpha1.ACLSpecSource{
+				TsuruJob: "my-job",
+			},
+		},
+	}
+
+	client := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(acl).Build()
+	gc := &ACLGarbageCollector{
+		Client: client,
+	}
+	err := gc.Loop(ctx)
+	require.NoError(t, err)
+
+	existingACL := &v1alpha1.ACL{}
+	err = client.Get(ctx, types.NamespacedName{
+		Namespace: acl.Namespace,
+		Name:      acl.Name,
+	}, existingACL)
+	assert.True(t, k8sErrors.IsNotFound(err))
+}

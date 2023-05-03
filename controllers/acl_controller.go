@@ -283,6 +283,10 @@ func (r *ACLReconciler) podSelectorForSource(source v1alpha1.ACLSpecSource) map[
 		return r.podSelectorForTsuruApp(source.TsuruApp)
 	}
 
+	if source.TsuruJob != "" {
+		return r.podSelectorForTsuruJob(source.TsuruJob)
+	}
+
 	if source.RpaasInstance != nil {
 		return r.podSelectorForRpasInstance(source.RpaasInstance)
 	}
@@ -701,6 +705,12 @@ func (r *ACLReconciler) ports(p []v1alpha1.ProtoPort) []netv1.NetworkPolicyPort 
 func (r *ACLReconciler) podSelectorForTsuruApp(tsuruApp string) map[string]string {
 	return map[string]string{
 		"tsuru.io/app-name": tsuruApp,
+	}
+}
+
+func (r *ACLReconciler) podSelectorForTsuruJob(tsuruJob string) map[string]string {
+	return map[string]string{
+		"tsuru.io/job-name": tsuruJob,
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/tsuru/acl-operator/api/v1alpha1"
 	tsuruv1 "github.com/tsuru/tsuru/provision/kubernetes/pkg/apis/tsuru/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -22,6 +23,10 @@ type ACLGarbageCollector struct {
 
 type appACLKey struct {
 	App       string
+	Namespace string
+}
+type jobACLKey struct {
+	Job       string
 	Namespace string
 }
 
@@ -39,6 +44,7 @@ func (a *ACLGarbageCollector) Run(ctx context.Context) {
 
 func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	appACLs := map[appACLKey]struct{}{}
+	jobACLs := map[jobACLKey]struct{}{}
 	dnsEntries := map[string]struct{}{}
 	tsuruApps := map[string]struct{}{}
 	rpaaInstances := map[v1alpha1.ACLSpecRpaasInstance]string{}
@@ -88,6 +94,13 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 			}] = struct{}{}
 		}
 
+		if acl.Spec.Source.TsuruJob != "" {
+			jobACLs[jobACLKey{
+				Namespace: acl.Namespace,
+				Job:       acl.Spec.Source.TsuruJob,
+			}] = struct{}{}
+		}
+
 		for _, destination := range acl.Spec.Destinations {
 			if destination.ExternalDNS != nil {
 				_, found := dnsEntries[destination.ExternalDNS.Name]
@@ -123,6 +136,21 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 		}
 	}
 
+	allTsuruJobs, err := a.allTsuruJobs(ctx)
+	if err != nil {
+		return err
+	}
+	for _, tsuruJob := range allTsuruJobs {
+		key := jobACLKey{
+			Job:       tsuruJob.Labels[tsuruJobLabel],
+			Namespace: tsuruJob.Namespace,
+		}
+		_, found := jobACLs[key]
+		if found {
+			delete(jobACLs, key) // the remain keys on appACLs must be garbage collected
+		}
+	}
+
 	if a.DryRun {
 		for dnsEntry := range dnsEntries {
 			fmt.Fprintln(a.DryRunOutput, "dnsEntry is marked to delete", dnsEntry)
@@ -137,6 +165,10 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 
 		for appACL := range appACLs {
 			fmt.Fprintln(a.DryRunOutput, "APP ACL is marked to delete", appACL.Namespace, "/", appACL.App)
+		}
+
+		for jobACL := range jobACLs {
+			fmt.Fprintln(a.DryRunOutput, "Job ACL is marked to delete", jobACL.Namespace, "/", jobACL.Job)
 		}
 		return nil
 	}
@@ -183,6 +215,18 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 		})
 		if err != nil {
 			a.Logger.Error(err, "failed to remove acl", "namespace", appACL.Namespace, "name", appACL.App)
+		}
+	}
+
+	for jobACL := range jobACLs {
+		err = a.Client.Delete(ctx, &v1alpha1.ACL{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: jobACL.Namespace,
+				Name:      tsuruJobACLPrefix + jobACL.Job,
+			},
+		})
+		if err != nil {
+			a.Logger.Error(err, "failed to remove acl", "namespace", jobACL.Namespace, "name", jobACL.Job)
 		}
 	}
 
@@ -314,6 +358,39 @@ func (a *ACLGarbageCollector) allTsuruApps(ctx context.Context) ([]tsuruv1.App, 
 		}
 
 		continueToken = allTsuruApps.Continue
+	}
+
+	return result, nil
+}
+
+func (a *ACLGarbageCollector) allTsuruJobs(ctx context.Context) ([]batchv1.CronJob, error) {
+	result := []batchv1.CronJob{}
+
+	continueToken := ""
+
+	for {
+		allTsuruJobs := &batchv1.CronJobList{}
+
+		err := a.Client.List(ctx, allTsuruJobs, &client.ListOptions{
+			Continue: continueToken,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+	cronjobLoop:
+		for _, cronjob := range allTsuruJobs.Items {
+			if cronjob.Labels[tsuruJobLabel] == "" {
+				continue cronjobLoop
+			}
+			result = append(result, cronjob)
+		}
+
+		if allTsuruJobs.Continue == "" {
+			break
+		}
+
+		continueToken = allTsuruJobs.Continue
 	}
 
 	return result, nil
