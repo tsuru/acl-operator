@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"reflect"
 	"sort"
@@ -103,8 +104,11 @@ func (r *TsuruAppAddressReconciler) FillStatus(ctx context.Context, appAddress *
 	for _, addr := range addrs {
 		ipAddrs, err := r.resolveAddress(ctx, addr)
 		if err != nil {
-			// TODO: set feedback on app
-			continue
+			return err
+		}
+
+		if len(ipAddrs) == 0 {
+			return fmt.Errorf("host %s returned a empty string by resolver", addr)
 		}
 
 		for _, ipAddr := range ipAddrs {
