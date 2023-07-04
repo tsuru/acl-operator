@@ -14,9 +14,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-type fakeResolver struct{}
+type fakeResolver struct {
+	hosts  map[string][]string
+	errors map[string]error
+}
 
 func (f *fakeResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
+	if addrs, ok := f.hosts[host]; ok {
+		result := []net.IPAddr{}
+
+		for _, addr := range addrs {
+			result = append(result, net.IPAddr{
+				IP: net.ParseIP(addr),
+			})
+		}
+
+		return result, nil
+	}
+
+	if err, ok := f.errors[host]; ok {
+		return nil, err
+	}
+
 	if host == "www.google.com.br" {
 		return []net.IPAddr{
 			{
