@@ -22,7 +22,8 @@ import (
 
 // TsuruAppAddressSpec defines the desired state of TsuruAppAddress
 type TsuruAppAddressSpec struct {
-	Name string `json:"name,omitempty"`
+	Name          string   `json:"name,omitempty"`
+	AdditionalIPs []string `json:"additionalIPs,omitempty"`
 }
 
 // ResourceAddressStatus defines the observed state of TsuruAppAddress and RpaasInstanceAddress

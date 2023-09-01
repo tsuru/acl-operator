@@ -351,6 +351,21 @@ func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp str
 		allErrors.Add(err)
 	}
 
+	additionalIPs := []netv1.NetworkPolicyPeer{}
+	for _, ip := range existingTsuruAppAddress.Spec.AdditionalIPs {
+		cidr := ipToCIDR(ip)
+		if cidr == "" {
+			continue
+		}
+
+		additionalIPs = append(additionalIPs, netv1.NetworkPolicyPeer{IPBlock: &netv1.IPBlock{
+			CIDR: cidr,
+		}})
+	}
+	if len(additionalIPs) > 0 {
+		egress = append(egress, []netv1.NetworkPolicyEgressRule{{To: additionalIPs}}...)
+	}
+
 	return egress, allErrors.ToError()
 }
 

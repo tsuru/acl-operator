@@ -320,6 +320,10 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 		},
 		Spec: v1alpha1.TsuruAppAddressSpec{
 			Name: "my-other-app",
+			AdditionalIPs: []string{
+				"3.3.3.3",
+				"4.4.4.4",
+			},
 		},
 		Status: v1alpha1.ResourceAddressStatus{
 			Ready: true,
@@ -384,12 +388,13 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 	suite.Assert().Equal(map[string]string{
 		"tsuru.io/app-name": "myapp",
 	}, existingNP.Spec.PodSelector.MatchLabels)
-	suite.Assert().Len(existingNP.Spec.Egress, 4)
+	suite.Assert().Len(existingNP.Spec.Egress, 5)
 
 	suite.Assert().Len(existingNP.Spec.Egress[0].To, 1)
 	suite.Assert().Len(existingNP.Spec.Egress[1].To, 1)
 	suite.Assert().Len(existingNP.Spec.Egress[2].To, 1)
 	suite.Assert().Len(existingNP.Spec.Egress[3].To, 1)
+	suite.Assert().Len(existingNP.Spec.Egress[4].To, 2)
 
 	suite.Assert().Equal(netv1.NetworkPolicyPeer{
 		PodSelector: &metav1.LabelSelector{
@@ -423,6 +428,19 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 			CIDR: "2.2.2.2/32",
 		},
 	}, existingNP.Spec.Egress[3].To[0])
+
+	suite.Assert().Equal([]netv1.NetworkPolicyPeer{
+		{
+			IPBlock: &netv1.IPBlock{
+				CIDR: "3.3.3.3/32",
+			},
+		},
+		{
+			IPBlock: &netv1.IPBlock{
+				CIDR: "4.4.4.4/32",
+			},
+		},
+	}, existingNP.Spec.Egress[4].To)
 }
 
 func (suite *ControllerSuite) TestACLReconcilerDestinationExternalDNSReconcile() {
