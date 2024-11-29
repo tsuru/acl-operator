@@ -433,7 +433,7 @@ func (r *ACLReconciler) egressRulesForExternalDNS(ctx context.Context, externalD
 	}
 
 	if !existingDNSEntry.Status.Ready {
-		l.Info("DNSEntry is not ready yet")
+		l.Info("DNSEntry is not ready yet", "reason", existingDNSEntry.Status.Reason)
 		return nil, nil
 	}
 
