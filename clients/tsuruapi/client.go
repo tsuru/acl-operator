@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/pkg/errors"
 	"github.com/tsuru/tsuru/app"
 )
 
@@ -59,7 +58,7 @@ func (c *client) AppInfo(ctx context.Context, appName string) (*app.App, error) 
 		return nil, err
 	}
 	if appData.Pool == "" || appData.Name == "" {
-		return nil, errors.Errorf("empty data for app %q", appName)
+		return nil, fmt.Errorf("empty data for app %q", appName)
 	}
 
 	return &appData, nil
