@@ -29,12 +29,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	extensionstsuruiov1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
-	v1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
+	aclv1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 	"github.com/tsuru/acl-operator/clients/tsuruapi"
 )
 
-var errInstanceNotFound = errors.New("Service instance not found")
+var errInstanceNotFound = errors.New("service instance not found")
 
 // RpaasInstanceAddressReconciler reconciles a RpaasInstanceAddress object
 type RpaasInstanceAddressReconciler struct {
@@ -51,8 +50,8 @@ type RpaasInstanceAddressReconciler struct {
 func (r *RpaasInstanceAddressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	rpaasInstanceAddress := &v1alpha1.RpaasInstanceAddress{}
-	err := r.Client.Get(ctx, req.NamespacedName, rpaasInstanceAddress)
+	rpaasInstanceAddress := &aclv1alpha1.RpaasInstanceAddress{}
+	err := r.Get(ctx, req.NamespacedName, rpaasInstanceAddress)
 	if k8sErrors.IsNotFound(err) {
 		return ctrl.Result{}, nil
 	} else if err != nil {
@@ -62,7 +61,6 @@ func (r *RpaasInstanceAddressReconciler) Reconcile(ctx context.Context, req ctrl
 
 	oldStatus := rpaasInstanceAddress.Status.DeepCopy()
 	err = r.FillStatus(ctx, rpaasInstanceAddress)
-
 	if err != nil {
 		rpaasInstanceAddress.Status.Ready = false
 		rpaasInstanceAddress.Status.Reason = err.Error()
@@ -88,9 +86,8 @@ func (r *RpaasInstanceAddressReconciler) Reconcile(ctx context.Context, req ctrl
 	return ctrl.Result{}, nil
 }
 
-func (r *RpaasInstanceAddressReconciler) FillStatus(ctx context.Context, rpaasInstanceAddress *v1alpha1.RpaasInstanceAddress) error {
+func (r *RpaasInstanceAddressReconciler) FillStatus(ctx context.Context, rpaasInstanceAddress *aclv1alpha1.RpaasInstanceAddress) error {
 	serviceInfo, err := r.TsuruAPI.ServiceInstanceInfo(ctx, rpaasInstanceAddress.Spec.ServiceName, rpaasInstanceAddress.Spec.Instance)
-
 	if err != nil {
 		return err
 	}
@@ -131,7 +128,7 @@ func (r *RpaasInstanceAddressReconciler) FillStatus(ctx context.Context, rpaasIn
 // SetupWithManager sets up the controller with the Manager.
 func (r *RpaasInstanceAddressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&extensionstsuruiov1alpha1.RpaasInstanceAddress{}).
+		For(&aclv1alpha1.RpaasInstanceAddress{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 2, RecoverPanic: true}).
 		Complete(r)
 }

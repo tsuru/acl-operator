@@ -16,7 +16,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -28,7 +27,7 @@ import (
 func (suite *ControllerSuite) TestACLReconcilerSimpleReconcile() {
 	ctx := context.Background()
 	acl := &v1alpha1.ACL{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "myapp",
 			Namespace: "default",
 		},
@@ -161,7 +160,7 @@ func (suite *ControllerSuite) TestACLReconcilerSimpleReconcile() {
 func (suite *ControllerSuite) TestACLReconcilerStaleReconcile() {
 	ctx := context.Background()
 	acl := &v1alpha1.ACL{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "myapp",
 			Namespace: "default",
 		},
@@ -263,7 +262,7 @@ func (suite *ControllerSuite) TestACLReconcilerStaleReconcile() {
 func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 	ctx := context.Background()
 	acl := &v1alpha1.ACL{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "myapp",
 			Namespace: "default",
 		},
@@ -280,7 +279,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 	}
 
 	dnsEntry1 := &v1alpha1.ACLDNSEntry{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: "myapp.io",
 		},
 		Spec: v1alpha1.ACLDNSEntrySpec{
@@ -297,7 +296,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 		},
 	}
 	dnsEntry2 := &v1alpha1.ACLDNSEntry{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: "http.myapp.io",
 		},
 		Spec: v1alpha1.ACLDNSEntrySpec{
@@ -315,7 +314,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 	}
 
 	tsuruAppAddress := &v1alpha1.TsuruAppAddress{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: "my-other-app",
 		},
 		Spec: v1alpha1.TsuruAppAddressSpec{
@@ -336,7 +335,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 
 	// 1.1.1.1 is also running on kubernetes
 	svc := &corev1.Service{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-awesome-service",
 			Namespace: "default",
 		},
@@ -446,7 +445,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationAppReconcile() {
 func (suite *ControllerSuite) TestACLReconcilerDestinationExternalDNSReconcile() {
 	ctx := context.Background()
 	acl := &v1alpha1.ACL{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "myapp",
 			Namespace: "default",
 		},
@@ -465,7 +464,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationExternalDNSReconcile()
 	}
 
 	dnsEntry1 := &v1alpha1.ACLDNSEntry{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: "myapp.io",
 		},
 		Spec: v1alpha1.ACLDNSEntrySpec{
@@ -533,7 +532,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationExternalDNSReconcile()
 func (suite *ControllerSuite) TestACLReconcilerDestinationRPaaSReconcile() {
 	ctx := context.Background()
 	acl := &v1alpha1.ACL{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "myapp",
 			Namespace: "default",
 		},
@@ -553,7 +552,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationRPaaSReconcile() {
 	}
 
 	dnsEntry1 := &v1alpha1.ACLDNSEntry{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: "myapp.io",
 		},
 		Spec: v1alpha1.ACLDNSEntrySpec{
@@ -570,7 +569,7 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationRPaaSReconcile() {
 		},
 	}
 	dnsEntry2 := &v1alpha1.ACLDNSEntry{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: "http.myapp.io",
 		},
 		Spec: v1alpha1.ACLDNSEntrySpec{
@@ -635,11 +634,9 @@ func (suite *ControllerSuite) TestACLReconcilerDestinationRPaaSReconcile() {
 			CIDR: "3.3.3.3/32",
 		},
 	}, existingNP.Spec.Egress[1].To[0])
-
 }
 
-type fakeTsuruAPI struct {
-}
+type fakeTsuruAPI struct{}
 
 func (f *fakeTsuruAPI) AppInfo(ctx context.Context, appName string) (*app.App, error) {
 	if appName == "my-other-app" {
@@ -697,5 +694,4 @@ func TestValidResourceName(t *testing.T) {
 
 		assert.Len(t, errs, 0)
 	}
-
 }

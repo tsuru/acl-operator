@@ -25,7 +25,6 @@ import (
 
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,7 +46,7 @@ func (r *RpaasInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	rpaasInstance := &rpaasv1alpha1.RpaasInstance{}
 
-	err := r.Client.Get(ctx, req.NamespacedName, rpaasInstance)
+	err := r.Get(ctx, req.NamespacedName, rpaasInstance)
 	if err != nil {
 		l.Error(err, "could not get RPaaS Instance object")
 		return ctrl.Result{}, err
@@ -63,7 +62,7 @@ func (r *RpaasInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	acl := &v1alpha1.ACL{}
-	err = r.Client.Get(ctx, client.ObjectKey{
+	err = r.Get(ctx, client.ObjectKey{
 		Name:      rpaasInstance.Name,
 		Namespace: rpaasInstance.Namespace,
 	}, acl)
@@ -73,11 +72,11 @@ func (r *RpaasInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, nil
 		}
 
-		err = r.Client.Create(ctx, &v1alpha1.ACL{
+		err = r.Create(ctx, &v1alpha1.ACL{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      rpaasInstance.Name,
 				Namespace: rpaasInstance.Namespace,
-				OwnerReferences: []v1.OwnerReference{
+				OwnerReferences: []metav1.OwnerReference{
 					*metav1.NewControllerRef(rpaasInstance, rpaasInstance.GroupVersionKind()),
 				},
 			},
@@ -94,7 +93,6 @@ func (r *RpaasInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				WarningErrors: warningErrors,
 			},
 		})
-
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -107,15 +105,14 @@ func (r *RpaasInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		l.Error(err, "could not get ACL object")
 		return ctrl.Result{}, err
 	} else if len(destinations) == 0 {
-		err = r.Client.Delete(ctx, acl)
-
+		err = r.Delete(ctx, acl)
 		if err != nil {
 			l.Error(err, "could not remove unused ACL")
 		}
 		return ctrl.Result{}, nil
 	}
 
-	acl.OwnerReferences = []v1.OwnerReference{
+	acl.OwnerReferences = []metav1.OwnerReference{
 		*metav1.NewControllerRef(rpaasInstance, rpaasInstance.GroupVersionKind()),
 	}
 
@@ -127,7 +124,7 @@ func (r *RpaasInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	acl.Spec.Destinations = destinations
 
-	err = r.Client.Update(ctx, acl)
+	err = r.Update(ctx, acl)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -135,7 +132,7 @@ func (r *RpaasInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if len(warningErrors) > 0 || len(acl.Status.WarningErrors) > 0 {
 		acl.Status.WarningErrors = warningErrors
 
-		err := r.Client.Status().Update(ctx, acl)
+		err := r.Status().Update(ctx, acl)
 		if err != nil {
 			l.Error(err, "could not remove update status of ACL")
 			return ctrl.Result{}, err

@@ -44,7 +44,7 @@ func (suite *ControllerSuite) TestRPaaSInstanceReconcilerEmptyReconcile() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Name:      rpaasInstance.Name,
 		Namespace: rpaasInstance.Namespace,
 	}, existingACL)
@@ -91,7 +91,7 @@ func (suite *ControllerSuite) TestRPaaSInstanceReconcilerDelete() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Name:      rpaasInstance.Name,
 		Namespace: rpaasInstance.Namespace,
 	}, existingACL)
@@ -162,7 +162,7 @@ func (suite *ControllerSuite) TestRPaaSInstanceReconcilerSimpleReconcile() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Name:      rpaasInstance.Name,
 		Namespace: rpaasInstance.Namespace,
 	}, existingACL)
@@ -324,7 +324,7 @@ func (suite *ControllerSuite) TestRPaaSInstanceReconcilerExistingObjectReconcile
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Name:      rpaasInstance.Name,
 		Namespace: rpaasInstance.Namespace,
 	}, existingACL)

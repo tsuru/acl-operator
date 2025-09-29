@@ -101,7 +101,6 @@ func (r *TsuruCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				WarningErrors: warningErrors,
 			},
 		})
-
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -115,7 +114,6 @@ func (r *TsuruCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	} else if len(destinations) == 0 {
 		err = r.Client.Delete(ctx, acl)
-
 		if err != nil {
 			l.Error(err, "could not remove unused ACL")
 		}

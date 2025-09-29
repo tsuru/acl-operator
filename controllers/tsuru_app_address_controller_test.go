@@ -38,7 +38,7 @@ func TestControllerResolveEmpty(t *testing.T) {
 		TsuruAPI: &fakeTsuruAPI{},
 		Resolver: &fakeResolver{
 			hosts: map[string][]string{
-				"myapp.io": []string{},
+				"myapp.io": {},
 			},
 		},
 	}
@@ -53,7 +53,7 @@ func TestControllerResolveEmpty(t *testing.T) {
 	require.NoError(t, err)
 
 	existingTsuruAppAddress := &v1alpha1.TsuruAppAddress{}
-	err = controller.Client.Get(context.Background(), types.NamespacedName{
+	err = controller.Get(context.Background(), types.NamespacedName{
 		Name:      tsuruAppAddress.Name,
 		Namespace: tsuruAppAddress.Namespace,
 	}, existingTsuruAppAddress)
@@ -101,7 +101,7 @@ func TestControllerResolveWithError(t *testing.T) {
 	require.NoError(t, err)
 
 	existingTsuruAppAddress := &v1alpha1.TsuruAppAddress{}
-	err = controller.Client.Get(context.Background(), types.NamespacedName{
+	err = controller.Get(context.Background(), types.NamespacedName{
 		Name:      tsuruAppAddress.Name,
 		Namespace: tsuruAppAddress.Namespace,
 	}, existingTsuruAppAddress)

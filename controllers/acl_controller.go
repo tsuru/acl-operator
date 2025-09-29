@@ -28,9 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
 	tsuruErrors "github.com/tsuru/tsuru/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -84,7 +82,7 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	l := log.FromContext(ctx)
 
 	acl := &v1alpha1.ACL{}
-	err := r.Client.Get(ctx, req.NamespacedName, acl)
+	err := r.Get(ctx, req.NamespacedName, acl)
 	if k8sErrors.IsNotFound(err) {
 	} else if err != nil {
 		l.Error(err, "could not get ACL object")
@@ -99,7 +97,7 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		networkPolicyName = "acl-" + req.Name
 	}
 
-	err = r.Client.Get(ctx, client.ObjectKey{
+	err = r.Get(ctx, client.ObjectKey{
 		Namespace: req.Namespace,
 		Name:      networkPolicyName,
 	}, networkPolicy)
@@ -112,11 +110,11 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	networkPolicyHasChanges := false
 	statusNeedsUpdate := false
-	networkPolicy.ObjectMeta.Namespace = acl.ObjectMeta.Namespace
-	networkPolicy.ObjectMeta.Name = networkPolicyName
+	networkPolicy.Namespace = acl.Namespace
+	networkPolicy.Name = networkPolicyName
 
 	if len(networkPolicy.OwnerReferences) == 0 {
-		networkPolicy.OwnerReferences = []v1.OwnerReference{
+		networkPolicy.OwnerReferences = []metav1.OwnerReference{
 			*metav1.NewControllerRef(acl, acl.GroupVersionKind()),
 		}
 
@@ -163,7 +161,7 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			ruleIDErrors[destination.RuleID] = err.Error()
 			egressRules = mapStaleEgress[destination.RuleID] // try to use stale
 			ruleIDDestinations[destination.RuleID] = copyEgressRules(egressRules)
-		} else if err == nil && destination.RuleID != "" {
+		} else if destination.RuleID != "" {
 			ruleIDDestinations[destination.RuleID] = copyEgressRules(egressRules)
 		}
 
@@ -218,7 +216,7 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	if networkPolicy.CreationTimestamp.IsZero() {
-		err = r.Client.Create(ctx, networkPolicy)
+		err = r.Create(ctx, networkPolicy)
 		if err != nil {
 			l.Error(err, "could not create NetworkPolicy object")
 			statusErr := r.setUnreadyStatus(ctx, acl, "could not create NetworkPolicy object, err: "+err.Error())
@@ -235,7 +233,7 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		statusNeedsUpdate = true
 
 	} else if networkPolicyHasChanges {
-		err = r.Client.Update(ctx, networkPolicy)
+		err = r.Update(ctx, networkPolicy)
 		if err != nil {
 			l.Error(err, "could not update NetworkPolicy object")
 			statusErr := r.setUnreadyStatus(ctx, acl, "could not update NetworkPolicy object, err: "+err.Error())
@@ -326,7 +324,6 @@ func (r *ACLReconciler) egressRulesForTsuruApp(ctx context.Context, tsuruApp str
 	}
 
 	existingTsuruAppAddress, err := r.ensureTsuruAppAddress(ctx, tsuruApp)
-
 	if err != nil {
 		l.Error(err, "could not get TsuruAppAddress", "appName", tsuruApp)
 		return nil, err
@@ -377,9 +374,8 @@ func (r *ACLReconciler) egressRulesForResourceAddressStatus(ctx context.Context,
 		addrEgresses, err := r.egressRulesForExternalIP(ctx, &v1alpha1.ACLSpecExternalIP{
 			IP: routerIP,
 		})
-
 		if err != nil {
-			errs = append(errs, errors.Wrapf(err, "could not generate egress rule for: %q", routerIP))
+			errs = append(errs, fmt.Errorf("could not generate egress rule for %q: %w", routerIP, err))
 		}
 
 		egresses = append(egresses, addrEgresses...)
@@ -388,7 +384,7 @@ func (r *ACLReconciler) egressRulesForResourceAddressStatus(ctx context.Context,
 	return egresses, errs
 }
 
-func (r *ACLReconciler) egressRulesForTsuruAppPool(ctx context.Context, tsuruAppPool string) ([]netv1.NetworkPolicyEgressRule, error) {
+func (r *ACLReconciler) egressRulesForTsuruAppPool(_ context.Context, tsuruAppPool string) ([]netv1.NetworkPolicyEgressRule, error) {
 	egress := []netv1.NetworkPolicyEgressRule{
 		{
 			To: []netv1.NetworkPolicyPeer{
@@ -426,7 +422,6 @@ func (r *ACLReconciler) egressRulesForExternalDNS(ctx context.Context, externalD
 	}
 
 	existingDNSEntry, err := r.ensureDNSEntry(ctx, externalDNS.Name)
-
 	if err != nil {
 		l.Error(err, "could not get ACLDNSEntry", "destination", externalDNS.Name)
 		return nil, err
@@ -481,7 +476,7 @@ func ipToCIDR(address string) string {
 	return ""
 }
 
-func (r *ACLReconciler) egressRulesForExternalIP(ctx context.Context, externalIP *v1alpha1.ACLSpecExternalIP) ([]netv1.NetworkPolicyEgressRule, error) {
+func (r *ACLReconciler) egressRulesForExternalIP(_ context.Context, externalIP *v1alpha1.ACLSpecExternalIP) ([]netv1.NetworkPolicyEgressRule, error) {
 	var cidr string
 
 	cidr = externalIP.IP
@@ -526,7 +521,6 @@ func (r *ACLReconciler) egressRulesForRpaasInstance(ctx context.Context, rpaasIn
 	}
 
 	existingRpaasInstanceAddress, err := r.ensureRpaasInstanceAddress(ctx, rpaasInstance)
-
 	if err != nil {
 		l.Error(err, "could not get RpaasInstanceAddress",
 			"rpaasInstance", rpaasInstance.Instance,
@@ -589,7 +583,6 @@ func (r *ACLReconciler) ensureDNSEntry(ctx context.Context, host string) (*v1alp
 		}
 
 		err = subReconciler.FillStatus(ctx, dnsEntry)
-
 		if err != nil {
 			l.Error(err, "could not fill status for DNSEntry", "dnsEntryName", resourceName)
 			return nil, err
@@ -685,7 +678,6 @@ func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasIns
 		}
 
 		err = subReconciler.FillStatus(ctx, rpaasInstanceAddress)
-
 		if err != nil {
 			l.Error(err, "could not fill status of RpaasInstanceAddress", "name", resourceName)
 			return nil, err
@@ -800,7 +792,6 @@ func (r *ACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		WithOptions(controller.Options{MaxConcurrentReconciles: 4, RecoverPanic: true}).
 		Owns(&netv1.NetworkPolicy{}).
 		Build(r)
-
 	if err != nil {
 		return err
 	}
@@ -903,7 +894,6 @@ func (r *ACLReconciler) setupWatchers(ctrl controller.Controller) error {
 
 			value := rpaasInstanceAddress.Spec.ServiceName + "/" + rpaasInstanceAddress.Spec.Instance
 			return r.reconcileRequestsForIndex(rpaasInstanceIndex, value)
-
 		}),
 	)
 	if err != nil {
@@ -932,7 +922,6 @@ func (r *ACLReconciler) reconcileRequestsForIndex(index, value string) []reconci
 	err := r.Client.List(context.Background(), list, &client.ListOptions{FieldSelector: fields.SelectorFromSet(fields.Set{
 		index: value,
 	})})
-
 	if err != nil {
 		log.Log.Error(err, "could not list ACLs")
 		return nil

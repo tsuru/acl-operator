@@ -43,17 +43,13 @@ func (a *ACLGarbageCollector) Run(ctx context.Context) {
 }
 
 func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
-	appACLs := map[appACLKey]struct{}{}
 	jobACLs := map[jobACLKey]struct{}{}
-	dnsEntries := map[string]struct{}{}
-	tsuruApps := map[string]struct{}{}
-	rpaaInstances := map[v1alpha1.ACLSpecRpaasInstance]string{}
 
 	allDNSEntries, err := a.allDNSEntries(ctx)
 	if err != nil {
 		return err
 	}
-	dnsEntries = make(map[string]struct{}, len(allDNSEntries))
+	dnsEntries := make(map[string]struct{}, len(allDNSEntries))
 	for _, dnsEntry := range allDNSEntries {
 		dnsEntries[dnsEntry.Spec.Host] = struct{}{}
 	}
@@ -62,8 +58,8 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	tsuruApps = make(map[string]struct{}, len(allTsuruAppAddress))
-	appACLs = make(map[appACLKey]struct{}, len(allTsuruAppAddress)) // fair aproximation
+	tsuruApps := make(map[string]struct{}, len(allTsuruAppAddress))
+	appACLs := make(map[appACLKey]struct{}, len(allTsuruAppAddress)) // fair aproximation
 	for _, tsuruAppAddress := range allTsuruAppAddress {
 		tsuruApps[tsuruAppAddress.Spec.Name] = struct{}{}
 	}
@@ -72,14 +68,14 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	rpaaInstances = make(map[v1alpha1.ACLSpecRpaasInstance]string, len(allRPaaSInstancesAddresses))
+	rpaaInstances := make(map[v1alpha1.ACLSpecRpaasInstance]string, len(allRPaaSInstancesAddresses))
 	for _, rpaaInstanceAddress := range allRPaaSInstancesAddresses {
 		key := v1alpha1.ACLSpecRpaasInstance{
 			ServiceName: rpaaInstanceAddress.Spec.ServiceName,
 			Instance:    rpaaInstanceAddress.Spec.Instance,
 		}
 
-		rpaaInstances[key] = rpaaInstanceAddress.ObjectMeta.Name
+		rpaaInstances[key] = rpaaInstanceAddress.Name
 	}
 
 	allACLSs, err := a.allACLs(ctx)
@@ -174,7 +170,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	}
 
 	for dnsEntry := range dnsEntries {
-		err = a.Client.Delete(ctx, &v1alpha1.ACLDNSEntry{
+		err = a.Delete(ctx, &v1alpha1.ACLDNSEntry{
 			ObjectMeta: v1.ObjectMeta{
 				Name: validResourceName(dnsEntry),
 			},
@@ -185,7 +181,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	}
 
 	for tsuruApp := range tsuruApps {
-		err = a.Client.Delete(ctx, &v1alpha1.TsuruAppAddress{
+		err = a.Delete(ctx, &v1alpha1.TsuruAppAddress{
 			ObjectMeta: v1.ObjectMeta{
 				Name: validResourceName(tsuruApp),
 			},
@@ -196,7 +192,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	}
 
 	for _, rpaasInstanceName := range rpaaInstances {
-		err = a.Client.Delete(ctx, &v1alpha1.RpaasInstanceAddress{
+		err = a.Delete(ctx, &v1alpha1.RpaasInstanceAddress{
 			ObjectMeta: v1.ObjectMeta{
 				Name: rpaasInstanceName,
 			},
@@ -207,7 +203,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	}
 
 	for appACL := range appACLs {
-		err = a.Client.Delete(ctx, &v1alpha1.ACL{
+		err = a.Delete(ctx, &v1alpha1.ACL{
 			ObjectMeta: v1.ObjectMeta{
 				Namespace: appACL.Namespace,
 				Name:      appACL.App,
@@ -219,7 +215,7 @@ func (a *ACLGarbageCollector) Loop(ctx context.Context) error {
 	}
 
 	for jobACL := range jobACLs {
-		err = a.Client.Delete(ctx, &v1alpha1.ACL{
+		err = a.Delete(ctx, &v1alpha1.ACL{
 			ObjectMeta: v1.ObjectMeta{
 				Namespace: jobACL.Namespace,
 				Name:      tsuruJobACLPrefix + jobACL.Job,
@@ -241,7 +237,7 @@ func (a *ACLGarbageCollector) allACLs(ctx context.Context) ([]v1alpha1.ACL, erro
 	for {
 		allACLSs := &v1alpha1.ACLList{}
 
-		err := a.Client.List(ctx, allACLSs, &client.ListOptions{
+		err := a.List(ctx, allACLSs, &client.ListOptions{
 			Continue: continueToken,
 		})
 		if err != nil {
@@ -267,7 +263,7 @@ func (a *ACLGarbageCollector) allDNSEntries(ctx context.Context) ([]v1alpha1.ACL
 	for {
 		allDNSEntries := &v1alpha1.ACLDNSEntryList{}
 
-		err := a.Client.List(ctx, allDNSEntries, &client.ListOptions{
+		err := a.List(ctx, allDNSEntries, &client.ListOptions{
 			Continue: continueToken,
 		})
 		if err != nil {
@@ -293,7 +289,7 @@ func (a *ACLGarbageCollector) allTsuruAppAddress(ctx context.Context) ([]v1alpha
 	for {
 		allTsuruAppAddress := &v1alpha1.TsuruAppAddressList{}
 
-		err := a.Client.List(ctx, allTsuruAppAddress, &client.ListOptions{
+		err := a.List(ctx, allTsuruAppAddress, &client.ListOptions{
 			Continue: continueToken,
 		})
 		if err != nil {
@@ -319,7 +315,7 @@ func (a *ACLGarbageCollector) allRPaaSInstancesAddresses(ctx context.Context) ([
 	for {
 		allRPaaSInstancesAddress := &v1alpha1.RpaasInstanceAddressList{}
 
-		err := a.Client.List(ctx, allRPaaSInstancesAddress, &client.ListOptions{
+		err := a.List(ctx, allRPaaSInstancesAddress, &client.ListOptions{
 			Continue: continueToken,
 		})
 		if err != nil {
@@ -345,7 +341,7 @@ func (a *ACLGarbageCollector) allTsuruApps(ctx context.Context) ([]tsuruv1.App, 
 	for {
 		allTsuruApps := &tsuruv1.AppList{}
 
-		err := a.Client.List(ctx, allTsuruApps, &client.ListOptions{
+		err := a.List(ctx, allTsuruApps, &client.ListOptions{
 			Continue: continueToken,
 		})
 		if err != nil {
@@ -371,7 +367,7 @@ func (a *ACLGarbageCollector) allTsuruJobs(ctx context.Context) ([]batchv1.CronJ
 	for {
 		allTsuruJobs := &batchv1.CronJobList{}
 
-		err := a.Client.List(ctx, allTsuruJobs, &client.ListOptions{
+		err := a.List(ctx, allTsuruJobs, &client.ListOptions{
 			Continue: continueToken,
 		})
 		if err != nil {

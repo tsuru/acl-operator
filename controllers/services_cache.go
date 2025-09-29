@@ -2,9 +2,8 @@ package controllers
 
 import (
 	"context"
-	"time"
-
 	"sync/atomic"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +37,7 @@ func (s *serviceCache) GetByIP(ctx context.Context, ip string) (*corev1.Service,
 func (s *serviceCache) fillCache(ctx context.Context) (*mapServiceCache, error) {
 	allServices := corev1.ServiceList{}
 
-	err := s.Client.List(ctx, &allServices, &client.ListOptions{Namespace: metav1.NamespaceAll})
+	err := s.List(ctx, &allServices, &client.ListOptions{Namespace: metav1.NamespaceAll})
 	if err != nil {
 		return nil, err
 	}

@@ -39,7 +39,7 @@ func (suite *ControllerSuite) TestTsuruCronJobReconcilerSimpleReconcile() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Namespace: job.Namespace,
 		Name:      tsuruJobACLPrefix + job.Name,
 	}, existingACL)
@@ -107,7 +107,7 @@ func (suite *ControllerSuite) TestTsuruCronJobReconcilerReconcileJobWithNoRules(
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Namespace: job.Namespace,
 		Name:      tsuruJobACLPrefix + job.Name,
 	}, existingACL)
@@ -151,7 +151,7 @@ func (suite *ControllerSuite) TestTsuruCronJobReconcilerReconcileExistingJobWith
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Namespace: job.Namespace,
 		Name:      tsuruJobACLPrefix + job.Name,
 	}, existingACL)
@@ -195,7 +195,7 @@ func (suite *ControllerSuite) TestTsuruCronJobReconcilerReconcileExistingJob() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Namespace: job.Namespace,
 		Name:      tsuruJobACLPrefix + job.Name,
 	}, existingACL)
@@ -229,7 +229,7 @@ func (suite *ControllerSuite) TestTsuruJobReconcilerReconcileJobWithErrors() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Namespace: job.Namespace,
 		Name:      tsuruJobACLPrefix + job.Name,
 	}, existingACL)

@@ -30,8 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/tsuru/acl-operator/api/v1alpha1"
-	extensionstsuruiov1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
+	aclv1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 )
 
 const dayFormat = "2006-01-02"
@@ -56,7 +55,7 @@ type ACLDNSEntryReconciler struct {
 func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	dnsEntry := &v1alpha1.ACLDNSEntry{}
+	dnsEntry := &aclv1alpha1.ACLDNSEntry{}
 
 	err := r.Client.Get(ctx, req.NamespacedName, dnsEntry)
 	if k8sErrors.IsNotFound(err) {
@@ -69,7 +68,6 @@ func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	existingStatus := dnsEntry.Status.DeepCopy()
 
 	err = r.FillStatus(ctx, dnsEntry)
-
 	if err != nil {
 		l.Error(err, "could not resolve address", "host", dnsEntry.Spec.Host)
 
@@ -98,11 +96,10 @@ func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func (r *ACLDNSEntryReconciler) FillStatus(ctx context.Context, dnsEntry *v1alpha1.ACLDNSEntry) error {
+func (r *ACLDNSEntryReconciler) FillStatus(ctx context.Context, dnsEntry *aclv1alpha1.ACLDNSEntry) error {
 	timoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	ipAddrs, err := r.Resolver.LookupIPAddr(timoutCtx, dnsEntry.Spec.Host)
-
 	if err != nil {
 		return err
 	}
@@ -124,7 +121,7 @@ statusLoop:
 	}
 
 	for _, foundIP := range missingIpAddrs {
-		dnsEntry.Status.IPs = append(dnsEntry.Status.IPs, extensionstsuruiov1alpha1.ACLDNSEntryStatusIP{
+		dnsEntry.Status.IPs = append(dnsEntry.Status.IPs, aclv1alpha1.ACLDNSEntryStatusIP{
 			Address:    foundIP.IP.String(),
 			ValidUntil: validUntil.Format(dayFormat),
 		})
@@ -153,7 +150,7 @@ statusLoop:
 // SetupWithManager sets up the controller with the Manager.
 func (r *ACLDNSEntryReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&extensionstsuruiov1alpha1.ACLDNSEntry{}).
+		For(&aclv1alpha1.ACLDNSEntry{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 4, RecoverPanic: true}).
 		Complete(r)
 }
