@@ -250,7 +250,7 @@ func (r *ACLReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	if statusNeedsUpdate {
-		err = r.Client.Status().Update(ctx, acl)
+		err = r.Status().Update(ctx, acl)
 		if err != nil {
 			l.Error(err, "could not update status for ACL object")
 			return ctrl.Result{}, err
@@ -269,7 +269,7 @@ func (r *ACLReconciler) setUnreadyStatus(ctx context.Context, acl *v1alpha1.ACL,
 	acl.Status.Ready = false
 	acl.Status.Reason = reason
 
-	err := r.Client.Status().Update(ctx, acl)
+	err := r.Status().Update(ctx, acl)
 	if err != nil {
 		l.Error(err, "could not update acl status")
 	}
@@ -556,7 +556,7 @@ func (r *ACLReconciler) ensureDNSEntry(ctx context.Context, host string) (*v1alp
 	existingDNSEntry := &v1alpha1.ACLDNSEntry{}
 
 	resourceName := validResourceName(host)
-	err := r.Client.Get(ctx, types.NamespacedName{
+	err := r.Get(ctx, types.NamespacedName{
 		Name: resourceName,
 	}, existingDNSEntry)
 
@@ -570,7 +570,7 @@ func (r *ACLReconciler) ensureDNSEntry(ctx context.Context, host string) (*v1alp
 			},
 		}
 
-		err = r.Client.Create(ctx, dnsEntry)
+		err = r.Create(ctx, dnsEntry)
 		if err != nil {
 			l.Error(err, "could not create ACLDNSEntry object")
 			return nil, err
@@ -582,11 +582,16 @@ func (r *ACLReconciler) ensureDNSEntry(ctx context.Context, host string) (*v1alp
 			Resolver: r.Resolver,
 		}
 
+		operationStart := time.Now()
 		err = subReconciler.FillStatus(ctx, dnsEntry)
+		operationDuration := time.Since(operationStart)
+		subReconcilerTime.WithLabelValues("acl", "acldnsentry").Observe(operationDuration.Seconds())
 		if err != nil {
+			subReconcilerTotal.WithLabelValues("acl", "acldnsentry", "error").Inc()
 			l.Error(err, "could not fill status for DNSEntry", "dnsEntryName", resourceName)
 			return nil, err
 		}
+		subReconcilerTotal.WithLabelValues("acl", "acldnsentry", "success").Inc()
 
 		return dnsEntry, nil
 	} else if err != nil {
@@ -602,7 +607,7 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 
 	existingTsuruAppAddress := &v1alpha1.TsuruAppAddress{}
 	resourceName := validResourceName(appName)
-	err := r.Client.Get(ctx, types.NamespacedName{
+	err := r.Get(ctx, types.NamespacedName{
 		Name: resourceName,
 	}, existingTsuruAppAddress)
 
@@ -616,7 +621,7 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 			},
 		}
 
-		err = r.Client.Create(ctx, tsuruAppAddress)
+		err = r.Create(ctx, tsuruAppAddress)
 		if err != nil {
 			l.Error(err, "could not create ACLDNSEntry object")
 			return nil, err
@@ -629,11 +634,16 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 			TsuruAPI: r.TsuruAPI,
 		}
 
+		operationStart := time.Now()
 		err = subReconciler.FillStatus(ctx, tsuruAppAddress)
+		operationDuration := time.Since(operationStart)
+		subReconcilerTime.WithLabelValues("acl", "tsuruappaddress").Observe(operationDuration.Seconds())
 		if err != nil {
+			subReconcilerTotal.WithLabelValues("acl", "tsuruappaddress", "error").Inc()
 			l.Error(err, "could not fill status of TsuruAppAddress", "tsuruAppName", resourceName)
 			return nil, err
 		}
+		subReconcilerTotal.WithLabelValues("acl", "tsuruappaddress", "success").Inc()
 
 		return tsuruAppAddress, nil
 	} else if err != nil {
@@ -649,7 +659,7 @@ func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasIns
 
 	existingRpaasInstanceAddress := &v1alpha1.RpaasInstanceAddress{}
 	resourceName := validResourceName(rpaasInstance.ServiceName + "-" + rpaasInstance.Instance)
-	err := r.Client.Get(ctx, types.NamespacedName{
+	err := r.Get(ctx, types.NamespacedName{
 		Name: resourceName,
 	}, existingRpaasInstanceAddress)
 
@@ -664,7 +674,7 @@ func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasIns
 			},
 		}
 
-		err = r.Client.Create(ctx, rpaasInstanceAddress)
+		err = r.Create(ctx, rpaasInstanceAddress)
 		if err != nil {
 			l.Error(err, "could not create RpaasInstanceAddress object")
 			return nil, err
@@ -677,11 +687,16 @@ func (r *ACLReconciler) ensureRpaasInstanceAddress(ctx context.Context, rpaasIns
 			TsuruAPI: r.TsuruAPI,
 		}
 
+		operationStart := time.Now()
 		err = subReconciler.FillStatus(ctx, rpaasInstanceAddress)
+		operationDuration := time.Since(operationStart)
+		subReconcilerTime.WithLabelValues("acl", "rpaasinstanceaddress").Observe(operationDuration.Seconds())
 		if err != nil {
+			subReconcilerTotal.WithLabelValues("acl", "rpaasinstanceaddress", "error").Inc()
 			l.Error(err, "could not fill status of RpaasInstanceAddress", "name", resourceName)
 			return nil, err
 		}
+		subReconcilerTotal.WithLabelValues("acl", "rpaasinstanceaddress", "success").Inc()
 		return rpaasInstanceAddress, err
 	} else if err != nil {
 		l.Error(err, "could not get RpaasInstanceAddress", "name", resourceName)
@@ -919,7 +934,7 @@ func (r *ACLReconciler) setupWatchers(ctrl controller.Controller) error {
 
 func (r *ACLReconciler) reconcileRequestsForIndex(index, value string) []reconcile.Request {
 	list := &v1alpha1.ACLList{}
-	err := r.Client.List(context.Background(), list, &client.ListOptions{FieldSelector: fields.SelectorFromSet(fields.Set{
+	err := r.List(context.Background(), list, &client.ListOptions{FieldSelector: fields.SelectorFromSet(fields.Set{
 		index: value,
 	})})
 	if err != nil {

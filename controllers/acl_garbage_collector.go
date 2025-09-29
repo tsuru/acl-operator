@@ -25,6 +25,7 @@ type appACLKey struct {
 	App       string
 	Namespace string
 }
+
 type jobACLKey struct {
 	Job       string
 	Namespace string
