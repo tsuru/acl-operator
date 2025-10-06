@@ -32,13 +32,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/tsuru/acl-operator/api/v1alpha1"
-	extensionstsuruiov1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
+	aclv1alpha1 "github.com/tsuru/acl-operator/api/v1alpha1"
 	"github.com/tsuru/acl-operator/clients/tsuruapi"
 	tsuruNet "github.com/tsuru/tsuru/net"
 )
 
-var errAppNotFound = errors.New("App not found")
+var errAppNotFound = errors.New("app not found")
 
 // TsuruAppAddressReconciler reconciles a TsuruAppAddress object
 type TsuruAppAddressReconciler struct {
@@ -55,8 +54,8 @@ type TsuruAppAddressReconciler struct {
 func (r *TsuruAppAddressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	appAddress := &v1alpha1.TsuruAppAddress{}
-	err := r.Client.Get(ctx, req.NamespacedName, appAddress)
+	appAddress := &aclv1alpha1.TsuruAppAddress{}
+	err := r.Get(ctx, req.NamespacedName, appAddress)
 	if k8sErrors.IsNotFound(err) {
 		return ctrl.Result{}, nil
 	} else if err != nil {
@@ -72,14 +71,14 @@ func (r *TsuruAppAddressReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	if oldStatus.Pool != appAddress.Status.Pool || oldStatus.Ready != appAddress.Status.Ready || !reflect.DeepEqual(oldStatus.IPs, appAddress.Status.IPs) {
-		err = r.Client.Status().Update(ctx, appAddress)
+		err = r.Status().Update(ctx, appAddress)
 		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *TsuruAppAddressReconciler) FillStatus(ctx context.Context, appAddress *v1alpha1.TsuruAppAddress) error {
+func (r *TsuruAppAddressReconciler) FillStatus(ctx context.Context, appAddress *aclv1alpha1.TsuruAppAddress) error {
 	appInfo, err := r.TsuruAPI.AppInfo(ctx, appAddress.Spec.Name)
 	if err != nil {
 		return err
@@ -143,7 +142,7 @@ func (r *TsuruAppAddressReconciler) resolveAddress(ctx context.Context, addr str
 // SetupWithManager sets up the controller with the Manager.
 func (r *TsuruAppAddressReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&extensionstsuruiov1alpha1.TsuruAppAddress{}).
+		For(&aclv1alpha1.TsuruAppAddress{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 2, RecoverPanic: true}).
 		Complete(r)
 }

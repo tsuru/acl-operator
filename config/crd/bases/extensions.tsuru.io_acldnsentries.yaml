@@ -42,6 +42,10 @@ spec:
           spec:
             description: ACLDNSEntrySpec defines the desired state of ACLDNSEntry
             properties:
+              additionalIPs:
+                items:
+                  type: string
+                type: array
               host:
                 type: string
             required:

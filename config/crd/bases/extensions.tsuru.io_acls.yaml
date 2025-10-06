@@ -112,6 +112,8 @@ spec:
                     type: object
                   tsuruApp:
                     type: string
+                  tsuruJob:
+                    type: string
                 type: object
             required:
             - destinations

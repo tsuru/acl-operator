@@ -48,7 +48,7 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	app := &tsuruv1.App{}
 
-	err := r.Client.Get(ctx, req.NamespacedName, app)
+	err := r.Get(ctx, req.NamespacedName, app)
 	if err != nil {
 		l.Error(err, "could not get Tsuru App object")
 		return ctrl.Result{}, err
@@ -68,7 +68,7 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	acl := &v1alpha1.ACL{}
-	err = r.Client.Get(ctx, client.ObjectKey{
+	err = r.Get(ctx, client.ObjectKey{
 		Name:      app.Name,
 		Namespace: app.Spec.NamespaceName,
 	}, acl)
@@ -78,7 +78,7 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return ctrl.Result{}, nil
 		}
 
-		err = r.Client.Create(ctx, &v1alpha1.ACL{
+		err = r.Create(ctx, &v1alpha1.ACL{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      app.Name,
 				Namespace: app.Spec.NamespaceName,
@@ -93,7 +93,6 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				WarningErrors: warningErrors,
 			},
 		})
-
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -106,8 +105,7 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		l.Error(err, "could not get ACL object")
 		return ctrl.Result{}, err
 	} else if len(destinations) == 0 {
-		err = r.Client.Delete(ctx, acl)
-
+		err = r.Delete(ctx, acl)
 		if err != nil {
 			l.Error(err, "could not remove unused ACL")
 		}
@@ -119,7 +117,7 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 	acl.Spec.Destinations = destinations
 
-	err = r.Client.Update(ctx, acl)
+	err = r.Update(ctx, acl)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -127,7 +125,7 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if len(warningErrors) > 0 || len(acl.Status.WarningErrors) > 0 {
 		acl.Status.WarningErrors = warningErrors
 
-		err := r.Client.Status().Update(ctx, acl)
+		err := r.Status().Update(ctx, acl)
 		if err != nil {
 			l.Error(err, "could not remove update status of ACL")
 			return ctrl.Result{}, err

@@ -49,7 +49,6 @@ func (f *fakeResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPA
 
 	if host == "timeout.com.br" {
 		return nil, errors.New("timeout for host")
-
 	}
 
 	return nil, errors.New("no mocks for host")
@@ -79,7 +78,7 @@ func (suite *ControllerSuite) TestACLDNSEntryReconcilerSimpleReconcile() {
 	suite.Require().NoError(err)
 
 	existingResolver := &v1alpha1.ACLDNSEntry{}
-	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(resolver), existingResolver)
+	err = reconciler.Get(ctx, client.ObjectKeyFromObject(resolver), existingResolver)
 	suite.Require().NoError(err)
 
 	suite.Assert().True(existingResolver.Status.Ready)
@@ -128,7 +127,7 @@ func (suite *ControllerSuite) TestACLDNSEntryReconcilerSimpleReconcileExisting()
 	suite.Require().NoError(err)
 
 	existingResolver := &v1alpha1.ACLDNSEntry{}
-	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(resolver), existingResolver)
+	err = reconciler.Get(ctx, client.ObjectKeyFromObject(resolver), existingResolver)
 	suite.Require().NoError(err)
 
 	suite.Assert().True(existingResolver.Status.Ready)
@@ -162,7 +161,7 @@ func (suite *ControllerSuite) TestACLDNSEntryReconcilerTimeoutReconcile() {
 	suite.Require().NoError(err)
 
 	existingResolver := &v1alpha1.ACLDNSEntry{}
-	err = reconciler.Client.Get(ctx, client.ObjectKeyFromObject(resolver), existingResolver)
+	err = reconciler.Get(ctx, client.ObjectKeyFromObject(resolver), existingResolver)
 	suite.Require().NoError(err)
 
 	suite.Require().Len(existingResolver.Status.IPs, 0)

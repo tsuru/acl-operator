@@ -19,12 +19,14 @@ type fakeACLAPI struct{}
 func (f *fakeACLAPI) AppRules(ctx context.Context, appName string) ([]aclapi.Rule, error) {
 	return f.mockRules(ctx, appName)
 }
+
 func (f *fakeACLAPI) JobRules(ctx context.Context, jobName string) ([]aclapi.Rule, error) {
 	return f.mockRules(ctx, jobName)
 }
 
-func (f *fakeACLAPI) mockRules(ctx context.Context, resourceName string) ([]aclapi.Rule, error) {
-	if resourceName == "myapp" || resourceName == "myjob" {
+func (f *fakeACLAPI) mockRules(_ context.Context, resourceName string) ([]aclapi.Rule, error) {
+	switch resourceName {
+	case "myapp", "myjob":
 		return []aclapi.Rule{
 			{
 				Destination: aclapi.RuleType{
@@ -75,9 +77,9 @@ func (f *fakeACLAPI) mockRules(ctx context.Context, resourceName string) ([]acla
 				},
 			},
 		}, nil
-	} else if resourceName == "myapp-no-rules" || resourceName == "myjob-no-rules" {
+	case "myapp-no-rules", "myjob-no-rules":
 		return []aclapi.Rule{}, nil
-	} else if resourceName == "myapp-with-errors" || resourceName == "myjob-with-errors" {
+	case "myapp-with-errors", "myjob-with-errors":
 		return []aclapi.Rule{
 			{
 				Destination: aclapi.RuleType{
@@ -134,7 +136,7 @@ func (suite *ControllerSuite) TestTsuruAppReconcilerSimpleReconcile() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Namespace: app.Spec.NamespaceName,
 		Name:      app.Name,
 	}, existingACL)
@@ -203,7 +205,7 @@ func (suite *ControllerSuite) TestTsuruAppReconcilerReconcileAppWithNoRules() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Namespace: app.Spec.NamespaceName,
 		Name:      app.Name,
 	}, existingACL)
@@ -247,7 +249,7 @@ func (suite *ControllerSuite) TestTsuruAppReconcilerReconcileExistingAppWithNoRu
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Namespace: app.Spec.NamespaceName,
 		Name:      app.Name,
 	}, existingACL)
@@ -291,7 +293,7 @@ func (suite *ControllerSuite) TestTsuruAppReconcilerReconcileExistingApp() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Namespace: app.Spec.NamespaceName,
 		Name:      app.Name,
 	}, existingACL)
@@ -325,7 +327,7 @@ func (suite *ControllerSuite) TestTsuruAppReconcilerReconcileAppWithErrors() {
 	suite.Require().NoError(err)
 
 	existingACL := &v1alpha1.ACL{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{
+	err = reconciler.Get(ctx, types.NamespacedName{
 		Namespace: app.Spec.NamespaceName,
 		Name:      app.Name,
 	}, existingACL)

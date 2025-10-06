@@ -42,6 +42,10 @@ spec:
           spec:
             description: TsuruAppAddressSpec defines the desired state of TsuruAppAddress
             properties:
+              additionalIPs:
+                items:
+                  type: string
+                type: array
               name:
                 type: string
             type: object
