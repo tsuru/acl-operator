@@ -66,11 +66,13 @@ func (r *TsuruAppAddressReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	oldStatus := appAddress.Status.DeepCopy()
 	err = r.FillStatus(ctx, appAddress)
 	if err != nil {
+		l.Error(err, "could not fill TsuruAppAddress status")
+
 		appAddress.Status.Ready = false
 		appAddress.Status.Reason = err.Error()
 	}
 
-	if oldStatus.Pool != appAddress.Status.Pool || oldStatus.Ready != appAddress.Status.Ready || !reflect.DeepEqual(oldStatus.IPs, appAddress.Status.IPs) {
+	if oldStatus.Pool != appAddress.Status.Pool || oldStatus.Ready != appAddress.Status.Ready || !reflect.DeepEqual(oldStatus.IPs, appAddress.Status.IPs) || oldStatus.Reason != appAddress.Status.Reason {
 		err = r.Status().Update(ctx, appAddress)
 		return ctrl.Result{}, err
 	}
@@ -87,6 +89,8 @@ func (r *TsuruAppAddressReconciler) FillStatus(ctx context.Context, appAddress *
 	if appInfo == nil {
 		return errAppNotFound
 	}
+
+	appAddress.Status.Pool = appInfo.Pool
 
 	addrs := make([]string, 0, len(appInfo.Routers))
 	for _, r := range appInfo.Routers {
@@ -120,8 +124,6 @@ func (r *TsuruAppAddressReconciler) FillStatus(ctx context.Context, appAddress *
 		resolvedIPs = append(resolvedIPs, ip)
 	}
 	sort.Strings(resolvedIPs)
-
-	appAddress.Status.Pool = appInfo.Pool
 
 	if !appAddress.Status.Ready || !reflect.DeepEqual(resolvedIPs, appAddress.Status.IPs) {
 		appAddress.Status.Ready = true
