@@ -623,7 +623,7 @@ func (r *ACLReconciler) ensureTsuruAppAddress(ctx context.Context, appName strin
 
 		err = r.Create(ctx, tsuruAppAddress)
 		if err != nil {
-			l.Error(err, "could not create ACLDNSEntry object")
+			l.Error(err, "could not create TsuruAppAddress object")
 			return nil, err
 		}
 
