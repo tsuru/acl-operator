@@ -428,8 +428,11 @@ func (r *ACLReconciler) egressRulesForExternalDNS(ctx context.Context, externalD
 	}
 
 	if !existingDNSEntry.Status.Ready {
-		l.Info("DNSEntry is not ready yet", "reason", existingDNSEntry.Status.Reason)
-		return nil, nil
+		if len(existingDNSEntry.Status.IPs) == 0 {
+			l.Info("DNSEntry is not ready yet", "reason", existingDNSEntry.Status.Reason)
+			return nil, nil
+		}
+		l.Info("DNSEntry is not ready but has Status IPs, using stale", "reason", existingDNSEntry.Status.Reason)
 	}
 
 	to := []netv1.NetworkPolicyPeer{}
