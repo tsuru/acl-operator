@@ -72,6 +72,7 @@ func main() {
 		"Enable Dry run for garbage collector")
 
 	opts := zap.Options{
+		DestWriter:      os.Stdout,
 		Development:     true,
 		StacktraceLevel: zapcore.DPanicLevel,
 	}
