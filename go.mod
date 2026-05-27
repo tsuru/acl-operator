@@ -1,6 +1,6 @@
 module github.com/tsuru/acl-operator
 
-go 1.19
+go 1.26
 
 require (
 	github.com/go-logr/logr v1.2.3
