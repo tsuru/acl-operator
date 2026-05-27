@@ -147,9 +147,9 @@ func (r *TsuruCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *TsuruCronJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *TsuruCronJobReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&batchv1.CronJob{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 2, RecoverPanic: true}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles, RecoverPanic: true}).
 		Complete(r)
 }

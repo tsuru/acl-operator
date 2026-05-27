@@ -23,7 +23,7 @@ func (s *serviceCache) GetByIP(ctx context.Context, ip string) (*corev1.Service,
 	allServices := s.allServices.Load()
 	expires := s.allServicesExpires.Load()
 
-	if allServices == nil || expires == nil || expires.After(time.Now().UTC()) {
+	if allServices == nil || expires == nil || time.Now().UTC().After(*expires) {
 		var err error
 		allServices, err = s.fillCache(ctx)
 		if err != nil {
@@ -70,7 +70,7 @@ func (s *serviceCache) fillCache(ctx context.Context) (*mapServiceCache, error) 
 	}
 
 	s.allServices.Store(&cache)
-	expires := time.Now().UTC().Add(time.Minute * 15)
+	expires := time.Now().UTC().Add(time.Second * 30)
 	s.allServicesExpires.Store(&expires)
 
 	return &cache, err

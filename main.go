@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -120,6 +121,21 @@ func main() {
 		gcDryRun = true
 	}
 
+	defaultMaxConcurrent := 8
+	if v := os.Getenv("MAX_CONCURRENT_RECONCILES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			defaultMaxConcurrent = n
+		}
+	}
+	getMaxConcurrent := func(envKey string) int {
+		if v := os.Getenv(envKey); v != "" {
+			if n, err := strconv.Atoi(v); err == nil && n > 0 {
+				return n
+			}
+		}
+		return defaultMaxConcurrent
+	}
+
 	tsuruAPI := tsuruapi.New(tsuruAPIAddr, tsuruAPIToken)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme.Scheme,
@@ -145,67 +161,76 @@ func main() {
 		os.Exit(1)
 	}
 
+	maxConcurrentReconciles := getMaxConcurrent("MAX_CONCURRENT_RECONCILES_ACL")
 	if err = (&controllers.ACLReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Resolver: controllers.DefaultResolver,
 		TsuruAPI: tsuruAPI,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, maxConcurrentReconciles); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ACL")
 		os.Exit(1)
 	}
+
+	maxConcurrentReconciles = getMaxConcurrent("MAX_CONCURRENT_RECONCILES_ACL_DNS_ENTRY")
 	if err = (&controllers.ACLDNSEntryReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Resolver: controllers.DefaultResolver,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, maxConcurrentReconciles); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ACLDNSEntry")
 		os.Exit(1)
 	}
 
 	if hasACLAPI {
+		maxConcurrentReconciles = getMaxConcurrent("MAX_CONCURRENT_RECONCILES_TSURU_APP")
 		if err = (&controllers.TsuruAppReconciler{
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),
 			ACLAPI: aclapi.New(aclAPIAddr, aclAPIUser, aclAPIPassword),
-		}).SetupWithManager(mgr); err != nil {
+		}).SetupWithManager(mgr, maxConcurrentReconciles); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "TsuruAppReconciler")
 			os.Exit(1)
 		}
 
+		maxConcurrentReconciles = getMaxConcurrent("MAX_CONCURRENT_RECONCILES_TSURU_CRONJOB")
 		if err = (&controllers.TsuruCronJobReconciler{
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),
 			ACLAPI: aclapi.New(aclAPIAddr, aclAPIUser, aclAPIPassword),
-		}).SetupWithManager(mgr); err != nil {
+		}).SetupWithManager(mgr, maxConcurrentReconciles); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "TsuruCronJobReconciler")
 			os.Exit(1)
 		}
 	}
 
+	maxConcurrentReconciles = getMaxConcurrent("MAX_CONCURRENT_RECONCILES_RPAAS_INSTANCE")
 	if err = (&controllers.RpaasInstanceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, maxConcurrentReconciles); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RpaasInstanceReconciler")
 		os.Exit(1)
 	}
 
+	maxConcurrentReconciles = getMaxConcurrent("MAX_CONCURRENT_RECONCILES_TSURU_APP_ADDRESS")
 	if err = (&controllers.TsuruAppAddressReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Resolver: controllers.DefaultResolver,
 		TsuruAPI: tsuruAPI,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, maxConcurrentReconciles); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "TsuruAppAddress")
 		os.Exit(1)
 	}
+
+	maxConcurrentReconciles = getMaxConcurrent("MAX_CONCURRENT_RECONCILES_RPAAS_INSTANCE_ADDRESS")
 	if err = (&controllers.RpaasInstanceAddressReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Resolver: controllers.DefaultResolver,
 		TsuruAPI: tsuruAPI,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, maxConcurrentReconciles); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RpaasInstanceAddress")
 		os.Exit(1)
 	}

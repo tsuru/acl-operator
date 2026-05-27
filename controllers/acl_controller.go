@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	"sort"
@@ -51,12 +52,21 @@ import (
 )
 
 var (
-	requeueAfter = time.Minute * 10
+	requeueAfter = getRequeueAfter()
 
 	desiredPolicyType = []netv1.PolicyType{
 		netv1.PolicyTypeEgress,
 	}
 )
+
+func getRequeueAfter() time.Duration {
+	if v := os.Getenv("REQUEUE_AFTER"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+	}
+	return time.Minute * 10
+}
 
 const (
 	externalDNSIndex   = "external-dns-name"
@@ -804,10 +814,10 @@ func (r *ACLReconciler) fillPodSelectorByCIDR(ctx context.Context, rules []netv1
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *ACLReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ACLReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
 	ctrl, err := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ACL{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 4, RecoverPanic: true}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles, RecoverPanic: true}).
 		Owns(&netv1.NetworkPolicy{}).
 		Build(r)
 	if err != nil {

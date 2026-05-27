@@ -263,10 +263,10 @@ func isKubernetesInternal(host string) bool {
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RpaasInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RpaasInstanceReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rpaasv1alpha1.RpaasInstance{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 2, RecoverPanic: true}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles, RecoverPanic: true}).
 		Owns(&rpaasv1alpha1.RpaasInstance{}).
 		Complete(r)
 }

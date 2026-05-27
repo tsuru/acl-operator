@@ -126,9 +126,9 @@ func (r *RpaasInstanceAddressReconciler) FillStatus(ctx context.Context, rpaasIn
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *RpaasInstanceAddressReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RpaasInstanceAddressReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&aclv1alpha1.RpaasInstanceAddress{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 2, RecoverPanic: true}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles, RecoverPanic: true}).
 		Complete(r)
 }

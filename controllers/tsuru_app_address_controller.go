@@ -142,9 +142,9 @@ func (r *TsuruAppAddressReconciler) resolveAddress(ctx context.Context, addr str
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *TsuruAppAddressReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *TsuruAppAddressReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&aclv1alpha1.TsuruAppAddress{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 2, RecoverPanic: true}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles, RecoverPanic: true}).
 		Complete(r)
 }

@@ -247,9 +247,9 @@ func convertPorts(ports aclapi.ProtoPorts) v1alpha1.ACLSpecProtoPorts {
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *TsuruAppReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *TsuruAppReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&tsuruv1.App{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 2, RecoverPanic: true}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles, RecoverPanic: true}).
 		Complete(r)
 }

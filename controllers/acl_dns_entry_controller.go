@@ -81,7 +81,7 @@ func (r *ACLDNSEntryReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: time.Minute * 10,
+			RequeueAfter: requeueAfter,
 		}, nil
 	}
 
@@ -148,9 +148,9 @@ statusLoop:
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *ACLDNSEntryReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ACLDNSEntryReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&aclv1alpha1.ACLDNSEntry{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 4, RecoverPanic: true}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles, RecoverPanic: true}).
 		Complete(r)
 }
