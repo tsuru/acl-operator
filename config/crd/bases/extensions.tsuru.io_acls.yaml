@@ -80,6 +80,30 @@ spec:
                       required:
                       - ip
                       type: object
+                    kubernetesSelector:
+                      properties:
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          minProperties: 1
+                          type: object
+                        namespace:
+                          type: string
+                        ports:
+                          items:
+                            properties:
+                              number:
+                                type: integer
+                              protocol:
+                                type: string
+                            required:
+                            - number
+                            - protocol
+                            type: object
+                          type: array
+                      required:
+                      - matchLabels
+                      type: object
                     rpaasInstance:
                       properties:
                         instance:
@@ -100,6 +124,16 @@ spec:
                 type: array
               source:
                 properties:
+                  kubernetesSelector:
+                    properties:
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        minProperties: 1
+                        type: object
+                    required:
+                    - matchLabels
+                    type: object
                   rpaasInstance:
                     properties:
                       instance:

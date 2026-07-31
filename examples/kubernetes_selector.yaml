@@ -1,0 +1,31 @@
+apiVersion: extensions.tsuru.io/v1alpha1
+kind: ACL
+metadata:
+  name: my-api-kubernetes-selector
+  namespace: workspace-squad-a
+  labels:
+    app: my-api
+    team: squad-a
+spec:
+  source:
+    kubernetesSelector:
+      matchLabels:
+        app: my-api
+        team: squad-a
+  destinations:
+  - kubernetesSelector:
+      namespace: workspace-squad-b
+      matchLabels:
+        app: billing
+        team: squad-b
+      ports:
+      - number: 9000
+        protocol: TCP
+  - kubernetesSelector:
+      matchLabels:
+        app: cache
+  - externalDNS:
+      name: www.google.com
+      ports:
+      - number: 443
+        protocol: TCP

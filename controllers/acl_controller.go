@@ -299,6 +299,10 @@ func (r *ACLReconciler) podSelectorForSource(source v1alpha1.ACLSpecSource) map[
 		return r.podSelectorForRpasInstance(source.RpaasInstance)
 	}
 
+	if source.KubernetesSelector != nil {
+		return r.podSelectorForKubernetesSelector(source.KubernetesSelector)
+	}
+
 	return nil
 }
 
@@ -313,6 +317,8 @@ func (r *ACLReconciler) egressRulesForDestination(ctx context.Context, destinati
 		return r.egressRulesForExternalIP(ctx, destination.ExternalIP)
 	} else if destination.RpaasInstance != nil {
 		return r.egressRulesForRpaasInstance(ctx, destination.RpaasInstance)
+	} else if destination.KubernetesSelector != nil {
+		return r.egressRulesForKubernetesSelector(ctx, destination.KubernetesSelector)
 	}
 	return nil, nil
 }
@@ -422,6 +428,33 @@ func (r *ACLReconciler) egressRulesForTsuruAppPool(_ context.Context, tsuruAppPo
 	}
 
 	return egress, nil
+}
+
+func (r *ACLReconciler) egressRulesForKubernetesSelector(_ context.Context, selector *v1alpha1.KubernetesSelectorDestination) ([]netv1.NetworkPolicyEgressRule, error) {
+	if len(selector.MatchLabels) == 0 {
+		return nil, fmt.Errorf("kubernetesSelector.matchLabels must not be empty")
+	}
+
+	peer := netv1.NetworkPolicyPeer{
+		PodSelector: &metav1.LabelSelector{
+			MatchLabels: selector.MatchLabels,
+		},
+	}
+
+	if selector.Namespace != "" {
+		peer.NamespaceSelector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"kubernetes.io/metadata.name": selector.Namespace,
+			},
+		}
+	}
+
+	return []netv1.NetworkPolicyEgressRule{
+		{
+			To:    []netv1.NetworkPolicyPeer{peer},
+			Ports: r.ports(selector.Ports),
+		},
+	}, nil
 }
 
 func (r *ACLReconciler) egressRulesForExternalDNS(ctx context.Context, externalDNS *v1alpha1.ACLSpecExternalDNS) ([]netv1.NetworkPolicyEgressRule, error) {
@@ -754,6 +787,13 @@ func (r *ACLReconciler) podSelectorForRpasInstance(rpaasInstance *v1alpha1.ACLSp
 		"rpaas.extensions.tsuru.io/instance-name": rpaasInstance.Instance,
 		"rpaas.extensions.tsuru.io/service-name":  rpaasInstance.ServiceName,
 	}
+}
+
+func (r *ACLReconciler) podSelectorForKubernetesSelector(selector *v1alpha1.KubernetesSelectorSource) map[string]string {
+	if len(selector.MatchLabels) == 0 {
+		return nil
+	}
+	return selector.MatchLabels
 }
 
 func (r *ACLReconciler) getServiceCache() *serviceCache {

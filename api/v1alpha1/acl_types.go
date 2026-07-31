@@ -28,9 +28,10 @@ type ACLSpec struct {
 }
 
 type ACLSpecSource struct {
-	TsuruApp      string                `json:"tsuruApp,omitempty"`
-	TsuruJob      string                `json:"tsuruJob,omitempty"`
-	RpaasInstance *ACLSpecRpaasInstance `json:"rpaasInstance,omitempty"`
+	TsuruApp           string                    `json:"tsuruApp,omitempty"`
+	TsuruJob           string                    `json:"tsuruJob,omitempty"`
+	RpaasInstance      *ACLSpecRpaasInstance     `json:"rpaasInstance,omitempty"`
+	KubernetesSelector *KubernetesSelectorSource `json:"kubernetesSelector,omitempty"`
 }
 
 type ACLSpecRpaasInstance struct {
@@ -38,14 +39,27 @@ type ACLSpecRpaasInstance struct {
 	Instance    string `json:"instance"`
 }
 
+type KubernetesSelectorSource struct {
+	// +kubebuilder:validation:MinProperties=1
+	MatchLabels map[string]string `json:"matchLabels"`
+}
+
+type KubernetesSelectorDestination struct {
+	// +kubebuilder:validation:MinProperties=1
+	MatchLabels map[string]string `json:"matchLabels"`
+	Namespace   string            `json:"namespace,omitempty"`
+	Ports       ACLSpecProtoPorts `json:"ports,omitempty"`
+}
+
 type ACLSpecDestination struct {
 	RuleID string `json:"ruleID,omitempty"`
 
-	TsuruApp      string                `json:"tsuruApp,omitempty"`
-	TsuruAppPool  string                `json:"tsuruAppPool,omitempty"`
-	RpaasInstance *ACLSpecRpaasInstance `json:"rpaasInstance,omitempty"`
-	ExternalDNS   *ACLSpecExternalDNS   `json:"externalDNS,omitempty"`
-	ExternalIP    *ACLSpecExternalIP    `json:"externalIP,omitempty"`
+	TsuruApp           string                         `json:"tsuruApp,omitempty"`
+	TsuruAppPool       string                         `json:"tsuruAppPool,omitempty"`
+	RpaasInstance      *ACLSpecRpaasInstance          `json:"rpaasInstance,omitempty"`
+	ExternalDNS        *ACLSpecExternalDNS            `json:"externalDNS,omitempty"`
+	ExternalIP         *ACLSpecExternalIP             `json:"externalIP,omitempty"`
+	KubernetesSelector *KubernetesSelectorDestination `json:"kubernetesSelector,omitempty"`
 }
 
 type ACLSpecExternalDNS struct {
