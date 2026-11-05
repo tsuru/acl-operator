@@ -49,7 +49,9 @@ func (r *TsuruAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	app := &tsuruv1.App{}
 
 	err := r.Get(ctx, req.NamespacedName, app)
-	if err != nil {
+	if k8sErrors.IsNotFound(err) {
+		return ctrl.Result{}, nil
+	} else if err != nil {
 		l.Error(err, "could not get Tsuru App object")
 		return ctrl.Result{}, err
 	}

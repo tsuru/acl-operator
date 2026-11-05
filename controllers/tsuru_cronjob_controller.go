@@ -49,7 +49,9 @@ func (r *TsuruCronJobReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	job := &batchv1.CronJob{}
 	err := r.Client.Get(ctx, req.NamespacedName, job)
-	if err != nil {
+	if k8sErrors.IsNotFound(err) {
+		return ctrl.Result{}, nil
+	} else if err != nil {
 		l.Error(err, "could not get CronJob object")
 		return ctrl.Result{}, err
 	}

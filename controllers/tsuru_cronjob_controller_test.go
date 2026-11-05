@@ -248,3 +248,21 @@ func (suite *ControllerSuite) TestTsuruJobReconcilerReconcileJobWithErrors() {
 
 	suite.Assert().Len(existingACL.Status.WarningErrors, 3)
 }
+
+func (suite *ControllerSuite) TestTsuruCronJobReconcilerReconcileDeletedCronJob() {
+	ctx := context.Background()
+
+	reconciler := &TsuruCronJobReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(),
+		Scheme: scheme.Scheme,
+		ACLAPI: &fakeACLAPI{},
+	}
+	result, err := reconciler.Reconcile(ctx, controllerruntime.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "myjob",
+			Namespace: "default",
+		},
+	})
+	suite.Require().NoError(err)
+	suite.Require().Equal(controllerruntime.Result{}, result)
+}

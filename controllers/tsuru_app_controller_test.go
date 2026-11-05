@@ -346,3 +346,21 @@ func (suite *ControllerSuite) TestTsuruAppReconcilerReconcileAppWithErrors() {
 
 	suite.Assert().Len(existingACL.Status.WarningErrors, 3)
 }
+
+func (suite *ControllerSuite) TestTsuruAppReconcilerReconcileDeletedApp() {
+	ctx := context.Background()
+
+	reconciler := &TsuruAppReconciler{
+		Client: fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(),
+		Scheme: scheme.Scheme,
+		ACLAPI: &fakeACLAPI{},
+	}
+	result, err := reconciler.Reconcile(ctx, controllerruntime.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "myapp",
+			Namespace: "default",
+		},
+	})
+	suite.Require().NoError(err)
+	suite.Require().Equal(controllerruntime.Result{}, result)
+}
